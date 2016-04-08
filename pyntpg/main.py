@@ -8,11 +8,13 @@ sip.setapi('QVariant', 2)
 from PyQt4 import QtCore, QtGui
 
 from pyntpg.dataset_tabs.main_widget import DatasetTabs
-from pyntpg.plot_tabs.plot_tabs import PlotTabs
+from pyntpg.plot_tabs.main_widget import PlotTabs
 from qipython import QIPython
 
 
 class MainWindow(QtGui.QMainWindow):
+    """ The main window of the QT application. It contains eg. the file menu, etc.
+    """
     def __init__(self):
         QtGui.QMainWindow.__init__(self)
         self.setWindowTitle("pyntpg")
@@ -21,7 +23,6 @@ class MainWindow(QtGui.QMainWindow):
         # Shortcuts
         QtGui.QShortcut(QtGui.QKeySequence("Ctrl+W"), self, self.close)
 
-        self.make_menus()
 
         # Set up the central widget and associated layout
         main_widget = QtGui.QWidget()
@@ -39,7 +40,12 @@ class MainWindow(QtGui.QMainWindow):
 
         self.ipython_wid = False
 
+        self.make_menus()
+
     def make_menus(self):
+        """ Encapsulating the menu creation into a function for better organization.
+        :return: None
+        """
         # File menu
         menu_file = QtGui.QMenu("&File", self)
         menu_file.addAction("&New workspace", self.new_workspace, QtCore.Qt.CTRL + QtCore.Qt.Key_N)
@@ -54,6 +60,19 @@ class MainWindow(QtGui.QMainWindow):
         menu_edit = QtGui.QMenu("&Edit", self)
         menu_edit.addAction("&Open IPython console", self.open_ipython)
         self.menuBar().addMenu(menu_edit)
+
+        # Dataset menu # Not sure of a better way to do these but they seem very likely to break if
+        # things are moved around at all.
+        menu_dataset = QtGui.QMenu("&Dataset", self)
+        menu_dataset.addAction("Open files", self.dataset_tabs.currentWidget().filepicker.add_file_clicked)
+        menu_dataset.addAction("Change dataset variable name", self.dataset_tabs.tabBar().mouseDoubleClickEvent)
+        menu_dataset.addAction("Refresh preview", self.dataset_tabs.currentWidget().filepicker.emit_file_list)
+        self.menuBar().addMenu(menu_dataset)
+
+        # Plot menu
+        menu_plot = QtGui.QMenu("&Plot", self)
+        menu_plot.addAction("Change plot title", self.plot_tabs.tabBar().mouseDoubleClickEvent)
+        self.menuBar().addMenu(menu_plot)
 
         # Help menu
         menu_help = QtGui.QMenu("&Help", self)

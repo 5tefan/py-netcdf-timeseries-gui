@@ -10,10 +10,13 @@ class NcinfoPreview(QtGui.QWidget):
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QVBoxLayout()
+        self.layout.setSpacing(0)
         self.setLayout(self.layout)
 
         status = QtGui.QWidget()
         status_layout = QtGui.QHBoxLayout()
+        status_layout.setSpacing(0)
+        status_layout.setMargin(0)
         status.setLayout(status_layout)
         label = QtGui.QLabel("Dataset")
         status_layout.addWidget(label)

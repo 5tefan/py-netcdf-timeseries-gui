@@ -8,6 +8,7 @@ class FilePicker(QtGui.QWidget):
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QVBoxLayout()
+        self.layout.setSpacing(0)
         self.setLayout(self.layout)
 
         # Add buttons for to add and remove files from the list
@@ -29,8 +30,8 @@ class FilePicker(QtGui.QWidget):
 
         # Create the actual file listing
         self.filelist = QtGui.QListWidget()
-        self.filelist.setMaximumHeight(300)
-        self.filelist.setMinimumHeight(300)
+        # self.filelist.setMaximumHeight(300)
+        # self.filelist.setMinimumHeight(300)
         self.filelist.setGridSize(QtCore.QSize(100, 20))
         self.filelist.setTextElideMode(QtCore.Qt.ElideLeft)
         self.filelist.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
@@ -52,8 +53,7 @@ class FilePicker(QtGui.QWidget):
                     self.filelist.addItem(item)
             self.filelist.setCurrentIndex(self.filelist.indexFromItem(item))
             self.file_item_clicked()
-            updated_file_list = [i.text() for i in self.filelist.findItems("", QtCore.Qt.MatchContains)]
-            self.selected_files.emit(updated_file_list)
+            self.emit_file_list()
 
     def remove_file_clicked(self):
         # Remove a file from the list of selected files
@@ -63,8 +63,7 @@ class FilePicker(QtGui.QWidget):
             self.remove_file.setHidden(True)
         else:
             self.filelist.setCurrentIndex(self.filelist.currentIndex())
-        updated_file_list = [i.text() for i in self.filelist.findItems("", QtCore.Qt.MatchContains)]
-        self.selected_files.emit(updated_file_list)
+        self.emit_file_list()
 
     def file_item_clicked(self):
         # Depending on the number of items selected, make sure the
@@ -73,6 +72,11 @@ class FilePicker(QtGui.QWidget):
             self.remove_file.setText("Remove Files")
         else:
             self.remove_file.setText("Remove File")
+
+    def emit_file_list(self):
+        updated_file_list = [i.text() for i in self.filelist.findItems("", QtCore.Qt.MatchContains)]
+        self.selected_files.emit(updated_file_list)
+
 
 
 # For testing individual widget

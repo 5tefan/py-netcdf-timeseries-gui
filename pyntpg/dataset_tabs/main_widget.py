@@ -67,8 +67,11 @@ class DatasetTabBar(QtGui.QTabBar):
         self.mutex = QtCore.QMutex()
         self.setTabsClosable(True)
 
-    def mouseDoubleClickEvent(self, event):
-        tab_index = self.tabAt(event.pos())
+    def mouseDoubleClickEvent(self, event=None):
+        if event is not None:
+            tab_index = self.tabAt(event.pos())
+        else:
+            tab_index = self.currentIndex()
         if self.mutex.tryLock() and tab_index != self.count() - 1:
             self.start_rename(tab_index)
 

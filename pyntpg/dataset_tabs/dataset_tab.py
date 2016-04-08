@@ -19,6 +19,8 @@ class DatasetTab(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.layout = QtGui.QGridLayout()
+        self.layout.setSpacing(0)
+        self.layout.setMargin(0)
         self.setLayout(self.layout)
 
         self.filepicker = FilePicker()
