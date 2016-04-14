@@ -1,5 +1,5 @@
-from PyQt4 import QtCore
-from PyQt4 import QtGui
+import netCDF4 as nc
+from PyQt4 import QtCore, QtGui
 
 from pyntpg.dataset_tabs.file_picker import FilePicker
 from pyntpg.dataset_tabs.ncinfo_preview import NcinfoPreview
@@ -15,6 +15,7 @@ class DatasetTab(QtGui.QWidget):
     """
     nc_obj = None  # Storage for the netCDF object
     noblock = None  # Storage for QThread when running, otherwise None
+    received_dataset = QtCore.pyqtSignal()
 
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
@@ -45,16 +46,11 @@ class DatasetTab(QtGui.QWidget):
             # If there is already a concat running, interrupt it
             if self.noblock is not None:
                 self.noblock.quit()
-                self.preview.update(None)
             self.noblock = NcConcatThread(filelist)
             self.noblock.has_data.connect(self.handle_new_ncobj)
-            self.noblock.has_data.connect(self.preview.update)
             self.noblock.start()
         else:
-            if self.noblock is not None:
-                self.noblock.quit()
-            self.nc_obj = None
-            self.preview.update(None)
+            self.handle_new_ncobj(None)
 
     def handle_new_ncobj(self, nc_obj):
         """ Slot to accept signal from the netcdf concatenation signifying that the
@@ -62,8 +58,15 @@ class DatasetTab(QtGui.QWidget):
         :param nc_obj: A netCDF object for the concatenated files.
         :return: None
         """
-        self.nc_obj = nc_obj
+        self.preview.update(nc_obj)
+        # Destroy the thread after it returns
+        if self.noblock is not None:
+            self.noblock.quit()
         self.noblock = None
+        # Set self.nc_obj so that the tab widget can collect reference
+        self.nc_obj = nc_obj
+        # Tell the tab widget that there is a new dataset
+        self.received_dataset.emit()
 
 
 class NcConcatThread(QtCore.QThread):
@@ -84,3 +87,21 @@ class NcConcatThread(QtCore.QThread):
         """
         nc_obj = goesr_nc_concat(self.files)
         self.has_data.emit(nc_obj)
+
+    # TODO: attach this to the object somehow so that plot tabs can use this
+    def convert_dates(self, nc_obj):
+        import re
+        suspect_time_vars = []
+        for var in nc_obj.variables:
+            if re.search("time", var):
+                suspect_time_vars.append(var)
+        # In the case that there is more than one time variable,
+        # I'm just going to make this simple and take the shortest name
+        # TODO: request user selection if there is more than one time var
+        suspect_time_vars.sort(key=len)
+        timevar = suspect_time_vars[0]
+        timearr = nc.num2date(
+            nc_obj.variables[timevar][:],
+            nc_obj.variables[timevar].units
+        )
+        return timearr

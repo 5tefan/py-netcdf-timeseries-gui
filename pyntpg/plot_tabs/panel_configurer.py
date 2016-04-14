@@ -3,6 +3,7 @@ from PyQt4 import QtGui
 
 
 class PanelConfigurer(QtGui.QWidget):
+    signal_new_config = QtCore.pyqtSignal(dict)
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QHBoxLayout()
@@ -22,18 +23,20 @@ class PanelConfigurer(QtGui.QWidget):
 
         # widget for the buttons
         self.buttons = Buttons()
+        self.buttons.add.clicked.connect(lambda: self.signal_new_config.emit(self.make_config_dict()))
         self.layout.addWidget(self.buttons)
 
     def make_config_dict(self):
-        ''' Make a dictionary of the properties selected
+        """ Make a dictionary of the properties selected
         in the configurer, intended to be passed to list_configured.
         :return: Dictionary describing line to plot
-        '''
+        """
         return {"dataset": self.datasetvarpanel.dataset_widget.currentText(),
                 "var": self.datasetvarpanel.variable_widget.currentText(),
+                "panel": self.datasetvarpanel.for_panel.value(),
                 "line": self.displaystyle.pick_line.currentText(),
                 "width": self.displaystyle.pick_width.value(),
-                "color": self.displaystyle.color,
+                "color": self.displaystyle.color_picked,
                 "start": self.daterange.begin_date.dateTime().toPyDateTime(),
                 "end": self.daterange.end_date.dateTime().toPyDateTime()}
 
@@ -46,6 +49,8 @@ class PickDatasetVariablePanel(QtGui.QWidget):
         self.setLayout(self.layout)
 
         self.dataset_widget = QtGui.QComboBox()
+        QtCore.QCoreApplication.instance().datasets_updated.connect(self.update_datasets)
+        self.dataset_widget.currentIndexChanged.connect(self.update_variables)
         self.layout.addRow("Dataset", self.dataset_widget)
 
         self.variable_widget = QtGui.QComboBox()
@@ -55,6 +60,22 @@ class PickDatasetVariablePanel(QtGui.QWidget):
         self.for_panel.setMinimum(0)
         self.layout.addRow("On Panel", self.for_panel)
 
+    def update_datasets(self, dict_of_datasets):
+        selected = self.dataset_widget.currentText()
+        self.dataset_widget.clear()
+        for key in dict_of_datasets.keys():
+            self.dataset_widget.addItem(key)
+        if selected in dict_of_datasets.keys():
+            self.dataset_widget.setCurrentIndex(dict_of_datasets.keys().index(selected))
+
+    def update_variables(self):
+        self.variable_widget.clear()
+        dataset = self.dataset_widget.currentText()
+        try:
+            for var in QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables:
+                self.variable_widget.addItem(var)
+        except KeyError:
+            pass
 
 class PickDateRange(QtGui.QWidget):
     def __init__(self):
@@ -72,6 +93,8 @@ class PickDateRange(QtGui.QWidget):
 
 class PickDisplayStyle(QtGui.QWidget):
     def __init__(self):
+        # todo: random color on initi
+        # todo: fill line styles combobox
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QFormLayout()
         self.layout.setContentsMargins(5, 0, 5, 0)

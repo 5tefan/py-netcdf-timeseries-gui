@@ -91,6 +91,26 @@ class LayoutPicker(QtGui.QWidget):
         for i, widget in enumerate(self.visible_widgets):
             widget.layout().itemAt(0).widget().setText("%s" % i)
 
+    def create_gridspec(self):
+        """ The plot that gets created will be configured with gridspec. In this
+        method, we create the height_ratios and width_ratios that will be used.
+        Note: height_ratios is an array, while width_ratios is an array of arrays,
+        each array corresponding to the panels in a height row.
+        :return: dict of height_ratios and width_ratios to use in mpl gridspec
+        """
+        # TODO: snap features, close to 1/2 and 1/3 snap. Also within tolerance of other panels snap together
+        height_ratios = []
+        width_ratios = []
+        for i, vwidth in enumerate(self.vsplitter.sizes()):
+            if vwidth > 0:
+                height_ratios.append(vwidth)
+                width_ratio = []
+                for j, hwidth in enumerate(self.vsplitter.widget(i).sizes()):
+                    if hwidth > 0:
+                        width_ratio.append(hwidth)
+                width_ratios.append(width_ratio)
+        return {"height_ratios": height_ratios, "width_ratios": width_ratios}
+
 
 # For testing individual widget
 if __name__ == "__main__":

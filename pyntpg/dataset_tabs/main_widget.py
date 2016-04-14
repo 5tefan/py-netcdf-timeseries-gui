@@ -5,12 +5,13 @@ from PyQt4 import QtGui, QtCore
 
 from pyntpg.dataset_tabs.dataset_tab import DatasetTab
 
-''' High level wrapper widget which will
+""" High level wrapper widget which will
     contain all the tabs.
-'''
+"""
 
 
 class DatasetTabs(QtGui.QTabWidget):
+    #  Signal on which to emit a dict of dataset: nc_obj when any dataset updated
     def __init__(self):
         QtGui.QTabWidget.__init__(self)
         # Mutex used to protect from tab_changed firing
@@ -19,7 +20,9 @@ class DatasetTabs(QtGui.QTabWidget):
         self.number_tabs_added = 0
         self.mutex = QtCore.QMutex()
         self.setTabBar(DatasetTabBar())
-        self.addTab(DatasetTab(self), "dataset")
+        dataset_tab = DatasetTab(self)
+        dataset_tab.received_dataset.connect(self.update_datasets)
+        self.addTab(dataset_tab, "dataset")
 
         # Add the "+" tab and make sure it has no close button
         # make sure that the + tab has no close button
@@ -33,9 +36,10 @@ class DatasetTabs(QtGui.QTabWidget):
 
     def tab_changed(self, index):
         maxindex = self.count() - 1
-        if ((index == maxindex or index == -1) and
-                self.mutex.tryLock()):
-            self.insertTab(maxindex, DatasetTab(self), "dataset_"
+        if ((index == maxindex or index == -1) and self.mutex.tryLock()):
+            dataset_tab = DatasetTab(self)
+            dataset_tab.received_dataset.connect(self.update_datasets)
+            self.insertTab(maxindex, dataset_tab, "dataset_"
                            + ascii_lowercase[self.number_tabs_added % len(ascii_lowercase)])
             self.number_tabs_added += 1
             self.setCurrentIndex(maxindex)
@@ -47,19 +51,27 @@ class DatasetTabs(QtGui.QTabWidget):
         to_remove = self.widget(index)
         self.removeTab(index)
         to_remove.deleteLater()
+        self.update_datasets()
 
-    def tabRemoved(self, index):
-        return
+    def update_datasets(self):
+        result = {}
+        for index in range(self.count() - 1):
+            nc_obj = self.widget(index).nc_obj
+            if nc_obj is not None:
+                name = self.tabText(index)
+                result.update({name: nc_obj})
+        QtCore.QCoreApplication.instance().update_datasets(result)
 
 
-''' The QtGui.QTabBar controls the actual tabs
+""" The QtGui.QTabBar controls the actual tabs
     in the tab bar. In here, we are setting the
     behavior for edit tab name on double click.
-'''
+"""
 
 
 class DatasetTabBar(QtGui.QTabBar):
     # credits of http://stackoverflow.com/a/30269356
+    tab_renamed = QtCore.pyqtSignal()
     def __init__(self):
         QtGui.QTabBar.__init__(self)
         # Mutex to keep from editing another tab
