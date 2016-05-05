@@ -36,7 +36,7 @@ class DatasetTabs(QtGui.QTabWidget):
 
     def tab_changed(self, index):
         maxindex = self.count() - 1
-        if ((index == maxindex or index == -1) and self.mutex.tryLock()):
+        if (index == maxindex or index == -1) and self.mutex.tryLock():
             dataset_tab = DatasetTab(self)
             dataset_tab.received_dataset.connect(self.update_datasets)
             self.insertTab(maxindex, dataset_tab, "dataset_"
@@ -46,8 +46,10 @@ class DatasetTabs(QtGui.QTabWidget):
             self.mutex.unlock()
 
     def close_tab(self, index):
-        if (index == self.count() - 2):
+        if index == self.count() - 2:
             self.setCurrentIndex(index - 1)
+        # Broadcast the remove event
+        QtCore.QCoreApplication.instance().remove_dataset(self.tabText(index))
         to_remove = self.widget(index)
         self.removeTab(index)
         to_remove.deleteLater()
@@ -102,8 +104,11 @@ class DatasetTabBar(QtGui.QTabBar):
         self.__edit.editingFinished.connect(self.finish_rename)
 
     def finish_rename(self):
+        oldtext = self.tabText(self.__edited_tab)
         text = re.sub(r" ", "_", str(self.__edit.text()).rstrip())
         text = re.sub(r"[^A-Za-z1-9_]+", "", text).rstrip("_")
         self.setTabText(self.__edited_tab, text)
+        # emit signal that tab name was changed so configured tabs can change
+        QtCore.QCoreApplication.instance().change_dataset_name(oldtext, text)
         self.__edit.deleteLater()
         self.mutex.unlock()

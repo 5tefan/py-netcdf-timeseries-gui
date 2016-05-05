@@ -1,15 +1,24 @@
 from __future__ import print_function
 
-from PyQt4 import QtCore
-from PyQt4 import QtGui
-
-""" This is turning out -super- kindof rickety """
-
+from PyQt4 import QtCore, QtGui
 
 # TODO: for the output function, make it so that all panels are an increment of 1/n where n is the number of panels
 
 class LayoutPicker(QtGui.QWidget):
+    """ The LayoutPicker class creates a widget of numbered rectangles
+    formed by movable sliders from which a user can very flexibly, but
+    visually choose how subplots in their graph should look and be laid out.
+
+    The implementation creates horizontal sliders first and populates each
+    with vertical sliders. The effect of this is that rows are cohesive but
+    each row has independent columns. I chose rows because time series are
+    generally horizontal. A column first implementation would be easy to adapt.
+    """
     def __init__(self):
+        """ Initialize the widget with layout, give label, and create
+        the sliders.
+        :return: None
+        """
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QVBoxLayout()
         self.setLayout(self.layout)
@@ -26,26 +35,30 @@ class LayoutPicker(QtGui.QWidget):
         self.vsplitter = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.vsplitter.setHandleWidth(2)
         self.vsplitter.setStyleSheet("QSplitter::handle {border: 1px solid white; background: black; }")
-        self.vsplitter.splitterMoved.connect(self.recalculate_visible_vertical)
         for i in range(self.vcount):
             hsplitter = QtGui.QSplitter(QtCore.Qt.Horizontal)
             hsplitter.setHandleWidth(2)
-            hsplitter.splitterMoved.connect(self.recalculate_visible_horizontal)
             for j in range(self.hcount):
                 widget = QtGui.QFrame()
                 self.widgets.append(widget)
                 self.visible_widgets.append(widget)
                 widget.setFrameShape(QtGui.QFrame.StyledPanel)
                 widget.setLayout(QtGui.QHBoxLayout())
+                # initialize the label. Label text will be changed through indirect references
                 widget.layout().addWidget(QtGui.QLabel("%s" % self.visible_widgets.index(widget)))
                 hsplitter.addWidget(widget)
             self.vsplitter.addWidget(hsplitter)
+            # connect splitterMoved after widgets added so things dont fire during setup
+            hsplitter.splitterMoved.connect(self.recalculate_visible_horizontal)
+        self.vsplitter.splitterMoved.connect(self.recalculate_visible_vertical)
 
         self.layout.addWidget(self.vsplitter)
 
     def recalculate_visible_horizontal(self):
         """ When a horizontal Slider is moved, see if it closed or opened
         any boxes and change self.widgets_visible and update numbering.
+
+        This function essentially updates the contents of self.visible_widgets.
         :return: None
         """
         for i, vwidth in enumerate(self.vsplitter.sizes()):
@@ -61,6 +74,8 @@ class LayoutPicker(QtGui.QWidget):
     def recalculate_visible_vertical(self):
         """ When a vertical slider is moved see if it closed or opened any
         rows and change the self.widgets_available and update the numbering.
+
+        This function essentially updates the contents of self.visible_widgets.
         :return: None
         """
         for i, vwidth in enumerate(self.vsplitter.sizes()):
@@ -82,6 +97,8 @@ class LayoutPicker(QtGui.QWidget):
     def label_frames(self):
         """ Put the frame numbering on each of the panels using their position in
         self.visible_widgets and the ordering from self.widgets.
+
+        This function creates the numbering.
         :return: None
         """
         # A little bit clever here, instead of trying to always insert the widgets

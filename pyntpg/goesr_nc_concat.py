@@ -62,8 +62,12 @@ def goesr_nc_concat(fn_list, fn_concat=None, read_only=True, global_attrs=None, 
     if 0 == len(fn_list): return None
 
     ' Imports '
-    import shutil
     from netCDF4 import Dataset as NCDataset
+
+    if 1 == len(fn_list): return NCDataset(fn_list[0])
+
+    ' Imports '
+    import shutil
     from nco import Nco
 
     ' Concatenate to a Temporary File '

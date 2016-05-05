@@ -1,3 +1,7 @@
+import datetime
+
+import IPython
+from PyQt4 import QtCore
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from traitlets.config.configurable import MultipleInstanceError
@@ -5,7 +9,6 @@ from traitlets.config.configurable import MultipleInstanceError
 
 class QIPython(RichJupyterWidget):
     def __init__(self):
-
         """ This took a ridiculous amount of time to figure out.
         Basically, when developing in PyCharm, your script is run
         from an IPython instance, so trying to start a new one
@@ -17,7 +20,6 @@ class QIPython(RichJupyterWidget):
             kernel_manager = QtInProcessKernelManager()
             kernel_manager.start_kernel(show_banner=False)
         except MultipleInstanceError:
-            import IPython
             ipy = IPython.get_ipython()
             saved = ipy._instance
             cls = type(saved)
@@ -26,8 +28,8 @@ class QIPython(RichJupyterWidget):
             kernel_manager = QtInProcessKernelManager()
             kernel_manager.start_kernel(show_banner=False)
 
-        kernel = kernel_manager.kernel
-        kernel.gui = 'qt4'
+        self.kernel = kernel_manager.kernel
+        self.kernel.gui = 'qt4'
         kernel_client = kernel_manager.client()
         kernel_client.start_channels()
 
@@ -36,61 +38,75 @@ class QIPython(RichJupyterWidget):
         self.kernel_manager = kernel_manager
         self.kernel_client = kernel_client
 
+        # On new dict, push to console
+        QtCore.QCoreApplication.instance().datasets_updated.connect(self.add_vars)
+        # On varname change, change vars in console
+        QtCore.QCoreApplication.instance().dataset_name_changed.connect(self.rename_var)
 
-"""
-class QIPython(RichIPythonWidget):
-    def __init__(self):
-        RichIPythonWidget.__init__(self)
-        self.kernel_manager = QtInProcessKernelManager()
-        self.kernel_manager.start_kernel()
-        self.kernel_manager.kernel.gui = 'qt4'
-        self.kernel_client = self._kernel_manager.client()
-        self.kernel_client.start_channels()
-        self.set_default_style(colors='linux')
+    def add_vars(self, dict_of_vars):
+        self.kernel.shell.push(dict_of_vars)
+        # Also update user_ns_hidden with dict of vars so that dict of vars doesn't
+        # show up as user defined variable
+        self.kernel.shell.user_ns_hidden.update(dict_of_vars)
 
-        def stop():
-            self.kernel_client.stop_channels()
-            self.kernel_manager.shutdown_kernel()
-            guisupport.get_app_qt4().exit()
+    def emit_user_vars(self):
+        """
+        :return:
+        """
+        # Inspired by https://gist.github.com/tgarc/21d2ffe00dab4b3c1075
+        ipy = IPython.get_ipython()
+        # Get non hidden and non ignored/temp vars
+        var_names = [var for var in ipy.user_ns if not var.startswith('_') and var not in ipy.user_ns_hidden]
+        # Filter out things we cant/dont want to plot, eg dim 1 or strings
+        dict_of_vars = {var_name: ipy.user_ns[var_name]
+                        for var_name in var_names
+                        if self.is_plotable(self.kernel.shell.user_ns[var_name])}
+        QtCore.QCoreApplication.instance().update_console_vars(dict_of_vars)
 
-        self.exit_requested.connect(stop)
-        # make non_user_shell_locals keep track of everything
-        # available inside the console when it is initialize
-        # so diff will show user defined variables
-        self.non_user = copy.deepcopy(self.kernel_manager.kernel.shell.__dict__['ns_table']['user_local'].keys())
+    def is_plotable(self, var_obj):
+        """ Not all variables from the console will be eligible to plot,
+        for example, strings should not show up in the variables list.
+        :param var_obj: object to check if valid to add to plotable list
+        :return: bool indicating validity
+        """
+        try:
+            if len(var_obj) <= 1:
+                return False
+        except TypeError:
+            return False
 
-    def pushVariables(self, variableDict):
-        # given a dictionary of name, value pairs, insert them
-        # into the console namespace
-        self.kernel_manager.kernel.shell.push(variableDict)
-        # variables we push are not user defined so add to non_user
-        self.non_user = self.non_user + variableDict.keys()
+        def is_float_or_date(x):
+            try:
+                float(x)
+                return True
+            except ValueError:
+                return False
+            except TypeError:
+                return isinstance(x, (datetime.date, datetime.time, datetime.datetime)) or self.is_plotable(x)
 
-    def clearTerminal(self):
-        self._control.clear()
+        return all(is_float_or_date(i) for i in var_obj)
 
-    def printText(self, text):
-        self._append_plain_text(text)
+    def rename_var(self, from_str, to_str):
+        """
+        :param from_str:
+        :param to_str:
+        :return:
+        """
+        self.add_vars({to_str: self.kernel.shell.user_ns[from_str]})
+        del self.kernel.shell.user_ns[from_str]
+        del self.kernel.shell.user_ns_hidden[from_str]
 
-    def _adjust_scrollbars(self):
-        # override because original impl inserts newlines under
-        # the command prompt which was annoying and unnecessary
-        pass
+    def _prompt_started_hook(self):
+        """ Called immediately after a new prompt is displayed.
+        Emit the variables after each prompt to check if there
+        are any plottables that need to be added to the var list.
+        """
+        self.emit_user_vars()
 
-    def getUserDefinedVars(self):
-        uservars = []
-        current = set(self.kernel_manager.kernel.shell.__dict__['ns_table']['user_local'].keys())
-        for x in current - set(self.non_user):
-            if x[0] != '_':
-                uservars.append(x)
-        return uservars
-
-    def getUserDefinedValue(self, varname):
-        return self.kernel_manager.kernel.shell.__dict__['ns_table']['user_local'][varname]
-"""
 
 if __name__ == "__main__":
     import sys
+    from PyQt4 import QtGui
 
     app = QtGui.QApplication(sys.argv)
     main = QIPython()

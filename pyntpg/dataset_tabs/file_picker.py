@@ -5,6 +5,7 @@ from PyQt4 import QtGui
 class FilePicker(QtGui.QWidget):
     selected_files = QtCore.pyqtSignal(list)
 
+    # TODO: Don't use nco concat if only import 1 file
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QVBoxLayout()

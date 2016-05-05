@@ -47,7 +47,8 @@ class NcinfoPreview(QtGui.QWidget):
             self.textbox.setPlainText("")
         self.progress.setVisible(False)
 
-    def make_nc_preview(self, netcdf_obj):
+    @staticmethod
+    def make_nc_preview(netcdf_obj):
         """ Create a string which provides a sufficient summary or
         preview of the netCDF object.
 

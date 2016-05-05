@@ -10,8 +10,21 @@ from pyntpg.qipython import QIPython
 
 
 class Application(QtGui.QApplication):
-    datasets_updated = QtCore.pyqtSignal(dict)
+    """ The rationale for having two separate interfaces for netcdf datasets and
+    plottable variables from the console is that they are indeed completely independent
+    and only connected by the fact that they both show up in the same ComboBox to select
+    the dataset and hence it is the ComboBox's concern to keep things in order.
+    """
+
+    # the dict of datasets
     dict_of_datasets = {}
+    datasets_updated = QtCore.pyqtSignal(dict)  # signal a completely new dict and emit it
+    dataset_name_changed = QtCore.pyqtSignal(str, str)  # from, to
+    dataset_removed = QtCore.pyqtSignal(str)
+
+    # separate interface for variables from the console
+    dict_of_vars = {}
+    console_vars_updated = QtCore.pyqtSignal(dict)
 
     def __init__(self, *args):
         QtGui.QApplication.__init__(self, *args)
@@ -21,6 +34,23 @@ class Application(QtGui.QApplication):
     def update_datasets(self, datasets_dict):
         self.dict_of_datasets = datasets_dict
         self.datasets_updated.emit(datasets_dict)
+
+    def change_dataset_name(self, from_str, to_str):
+        if from_str in self.dict_of_datasets.keys():
+            self.dataset_name_changed.emit(from_str, to_str)
+            self.dict_of_datasets.update({to_str: self.dict_of_datasets[from_str]})
+            del self.dict_of_datasets[from_str]  # rm old key
+
+    def remove_dataset(self, str_name):
+        if str_name in self.dict_of_datasets.keys():
+            self.dataset_removed.emit(str_name)
+            del self.dict_of_datasets[str_name]
+
+    def update_console_vars(self, var_dict):
+        self.dict_of_vars = var_dict
+        self.console_vars_updated.emit(var_dict)
+
+
 
 class MainWindow(QtGui.QMainWindow):
     """ The main window of the QT application. It contains eg. the file menu, etc.
@@ -47,6 +77,9 @@ class MainWindow(QtGui.QMainWindow):
         # Create the plot tabs
         self.plot_tabs = PlotTabs()
         self.main_widget_layout.addWidget(self.plot_tabs)
+
+        # Create the IPython qwidget
+        self.ipython_wid = QIPython()
 
         # The menus have to be after the tabs were set up.
         self.make_menus()
@@ -86,11 +119,8 @@ class MainWindow(QtGui.QMainWindow):
         self.menuBar().addMenu(menu_help)
 
     def open_ipython(self):
-        if self.ipython_wid is None:
-            self.ipython_wid = QIPython()
-        else:
-            self.ipython_wid.raise_()
         self.ipython_wid.show()
+        self.ipython_wid.raise_()
 
 if __name__ == "__main__":
     app = Application(sys.argv)

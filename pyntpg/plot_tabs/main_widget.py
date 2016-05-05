@@ -8,7 +8,7 @@ class PlotTabs(QtGui.QTabWidget):
         QtGui.QTabWidget.__init__(self)
         self.mutex = QtCore.QMutex()
         self.setTabBar(PlotTabBar())
-        self.addTab(PlotTab(self), "plot")
+        self.addTab(PlotTab(), "plot")
 
         # Add the "+" tab and make sure it has no close button
         plus_tab = QtGui.QWidget()
@@ -23,12 +23,12 @@ class PlotTabs(QtGui.QTabWidget):
         maxindex = self.count() - 1
         if ((index == maxindex or index == -1) and
                 self.mutex.tryLock()):
-            self.insertTab(maxindex, PlotTab(self), "plot")
+            self.insertTab(maxindex, PlotTab(), "plot")
             self.setCurrentIndex(maxindex)
             self.mutex.unlock()
 
     def close_tab(self, index):
-        if (index == self.count() - 2):
+        if index == self.count() - 2:
             self.setCurrentIndex(index - 1)
         self.widget(index).deleteLater()
         self.removeTab(index)
