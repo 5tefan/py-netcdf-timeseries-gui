@@ -6,11 +6,13 @@ from PyQt4 import QtCore, QtGui
 
 from_console_text = "IPython console"
 
+
 class PanelConfigurer(QtGui.QWidget):
-    """ Main widget to gather all the pieces below into a cohesive interface for picking
-    something to plot on a time series plot.
+    """ Main widget to gather all the pieces below into a cohesive interface for
+    picking something to plot.
     """
     signal_new_config = QtCore.pyqtSignal(dict)  # Signal to the ListConfigured
+
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QHBoxLayout()
@@ -36,18 +38,46 @@ class PanelConfigurer(QtGui.QWidget):
         in the configurer, intended to be passed to list_configured.
         :return: Dictionary describing line to plot
         """
-        yax = self.y_picker.get_config()
-        xax = self.x_picker.get_config()
         base = self.misc_controls.get_config()
-        base.update({"y-axis": yax, "x-axis": xax})
+        base.update(self.x_picker.get_config())
+        base.update(self.y_picker.get_config())
+
+        # create a key displaydata which contains just the data that should be
+        # put on the graph. This is done by grabbing the mask from the x-axis values
+        # array which we ignore the actual values of and applying it to the data and
+        # then compressing. The make_plot function will look for this
+        mask = False
+        if hasattr(base["ydata"], "mask"):
+            mask = base["ydata"].mask
+        if hasattr(base["xdata"], "mask"):
+            mask = mask | base["xdata"].mask
+
+        tomasky = np.ma.array(base["ydata"], mask=mask)
+        tomaskx = np.ma.array(base["xdata"], mask=mask)
+        self.base["xdata"] = np.ma.compressed(tomaskx)
+        self.base["ydata"] = np.ma.compressed(tomasky)
+
+        if base["type"] == "index":
+            base["string"] = "%s::%s vs index" % (base["ydataset"], base["yvariable"])
+        elif base["type"] == "date":
+            base["string"] = "%s::%s vs time (%s - %s)" % (
+                base["ydataset"], base["yvariable"],
+                base["xdata"][0], base["xdata"][-1]
+            )
+        else:  # base["type"] == "other"
+            base["string"] = "%s::%s vs %s::%s" % (
+                base["ydataset"], base["yvariable"],
+                base["xdataset"], base["xvariable"]
+            )
+
         return base
 
 
 class DatasetVarPicker(QtGui.QWidget):
     """ Base class for picking what goes on the axes.
-    Provides a title, and the From dataset and variable
-    selection in addition to the signals and slots for
-    updating the comboboxes when new things are emitted.
+    Provides a title, and the dataset and variable selection.
+    This is intended to be inherited because the slots listening for
+    updated datasets and variable are implemented here.
     Broken out from the two so that that code doesnt get duplicated.
     """
 
@@ -88,7 +118,6 @@ class DatasetVarPicker(QtGui.QWidget):
         except AttributeError:
             pass
 
-
     def update_datasets(self, dict_of_datasets):
         """ Intended to be a slot to connect the signal for new/updated datasets.
         Note that the dict_of_datasets argument doesn't need the nc obj value pair for each
@@ -100,8 +129,7 @@ class DatasetVarPicker(QtGui.QWidget):
         self.dataset_widget.clear()
         # Put the datasets in
         self.dataset_widget.addItem(from_console_text)
-        for key in dict_of_datasets.keys():
-            self.dataset_widget.addItem(key)
+        self.dataset_widget.addItems(dict_of_datasets.keys())
         # If the previously selected on still there, select it
         self.dataset_widget.setCurrentIndex(self.dataset_widget.findText(selected))
 
@@ -110,24 +138,27 @@ class DatasetVarPicker(QtGui.QWidget):
         current_dataset = self.dataset_widget.currentText()
         if current_dataset == from_console_text:  # If the IPython console is selected
             for var in QtCore.QCoreApplication.instance().dict_of_vars.keys():
-                if self.show_var_condition(var):
+                var_value = QtCore.QCoreApplication.instance().dict_of_vars[var]
+                if self.show_var_condition(var_value):
                     self.variable_widget.addItem(var)
         else:  # Otherwise must fetch from the netcdf obj
             try:
                 for var in QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables:
-                    if self.show_var_condition(var):
+                    var_value = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var]
+                    if self.show_var_condition(var_value):
                         self.variable_widget.addItem(var)
             except KeyError:
                 pass
 
     def update_console_vars(self, var_list):
-        selected = self.variable_widget.currentText()
-        self.variable_widget.clear()
-        for var in var_list:
-            self.variable_widget.addItem(var)
-        # TODO: if findText -1, flash/animate/highlight that widget is blank, see
-        # https://docs.google.com/viewer?url=https://sites.google.com/site/kennethchristiansen/DUI.html
-        self.variable_widget.setCurrentIndex(self.variable_widget.findText(selected))
+        current_dataset = self.dataset_widget.currentText()
+        if current_dataset == from_console_text:  # If the IPython console is selected
+            selected = self.variable_widget.currentText()
+            self.variable_widget.clear()
+            self.variable_widget.addItems(var_list.keys())
+            # TODO: if findText -1, flash/animate/highlight that widget is blank, see
+            # https://docs.google.com/viewer?url=https://sites.google.com/site/kennethchristiansen/DUI.html
+            self.variable_widget.setCurrentIndex(max(self.variable_widget.findText(selected), 0))
 
     def show_var_condition(self, var):
         """ Should the variable be shown in the combobox?
@@ -144,6 +175,7 @@ class YPicker(DatasetVarPicker):
     y_picked = QtCore.pyqtSignal(int)  # emit the dimensions of the y_variable picked
     needs_flatten = False
     flattenings = []
+
     def __init__(self):
         DatasetVarPicker.__init__(self, "y axis picker")
         self.variable_widget.currentIndexChanged.connect(self.check_dims)
@@ -158,13 +190,16 @@ class YPicker(DatasetVarPicker):
         # TODO: add the dimension picker here
 
     def check_dims(self, var_index):
+        # delete anything that was in self.dimension_picker_layout previously
         for i in reversed(range(self.dimension_picker_layout.count())):
             self.dimension_picker_layout.itemAt(i).widget().deleteLater()
+        self.needs_flatten = False  # assume flat at start
+        self.flattenings = []
         current_dataset = self.dataset_widget.currentText()
-        if current_dataset != from_console_text:  # assume conosle_vars don't need flatten
+        if current_dataset and current_dataset != from_console_text:  # assume conosle_vars don't need flatten
             nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
             var_name = self.variable_widget.itemText(var_index)
-            if len(nc_obj.variables[var_name].shape) > 1:
+            if var_name and len(nc_obj.variables[var_name].shape) > 1:
                 self.needs_flatten = True
                 self.flattenings = []
                 for dim in nc_obj.variables[var_name].dimensions:
@@ -188,47 +223,55 @@ class YPicker(DatasetVarPicker):
                     # Add spinboxes to self.flattenings to look up later
                     self.flattenings.append([begin_spinbox, end_spinbox])
                     self.dimension_picker_layout.addRow(dim, slice_container)
-            else:
-                self.needs_flatten = False
-                self.flattenings = []
-            self.emit_y_picked()
+        self.emit_y_picked()
 
     def emit_y_picked(self):
+        """ Calculate the size of the variable selected, taking
+        into account flattening and slicing, and emit it on the
+        self.y_picked signal.
+        :return: None
+        """
         current_dataset = self.dataset_widget.currentText()
         var_name = self.variable_widget.currentText()
-        if self.needs_flatten:
+        if not current_dataset or not var_name:
+            return  # abort if there is nothing selected
+        elif current_dataset == from_console_text:
+            length = len(QtCore.QCoreApplication.instance().dict_of_vars[var_name])
+        elif self.needs_flatten:  # nc_obj var needs flattening
             var = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var_name][:]
-            slices = []
-            for flatten in self.flattenings:
-                slices.append(slice(flatten[0].value(), flatten[1].value()))
-            var = var[slices].flatten()
-            length = len(var)
-        else:
-            if current_dataset == from_console_text:
-                length = len(QtCore.QCoreApplication.instance().dict_of_vars[var_name])
-            else:  # variable is from ncobject
-                length = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var_name].size
+            length = len(self.make_flat(var))
+        else:  # else, is nc_obj var that doesn't need flattening
+            length = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var_name].size
         self.y_picked.emit(length)
 
-    def variable_changed(self, index):
-        current_dataset = self.dataset_widget.currentText()
-        selected = self.variable_widget.currentText()
-        if current_dataset == from_console_text:  # If the IPython console is selected
-            variable = QtCore.QCoreApplication.instance().dict_of_vars[selected]
-        else:  # Otherwise must fetch from the netcdf obj
-            variable = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[selected]
-        self.var_len_selected.emit(5)
+    def make_flat(self, var):
+        """ Flatten the values in var if they need flattening, ie, if
+        they are multidimensional.
+        :param var: List values to flatten
+        :return: list: flattened values from var
+        """
+        if self.needs_flatten:  # apply the flattening
+            slices = [slice(f[0].value(), f[1].value()) for f in self.flattenings]
+            var = var[slices].flatten()
+        return var
 
     def get_config(self):
+        """ Calling self.get_config will collect all the options
+        configured through the UI into a dict for plotting.
+        :return: dict configuration object specifying x-axis
+        """
         dataset = str(self.dataset_widget.currentText())
         variable = str(self.variable_widget.currentText())
-        if self.dataset_widget.currentText() == from_console_text:
+
+        if dataset == from_console_text:
             values = QtCore.QCoreApplication.instance().dict_of_vars[variable]
         else:
             values = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][:]
-        return {"dataset": dataset,
-                "variable": variable,
-                "values": values,
+        if self.needs_flatten:  # nc_obj var needs flattening
+            values = self.make_flat(values)
+        return {"ydataset": dataset,
+                "yvariable": variable,
+                "ydata": values,
                 }
 
 
@@ -289,20 +332,22 @@ class XPicker(DatasetVarPicker):
         self.index_pressed()
         self.y_picked(None)
 
-    def y_picked(self, len=None):
+    def y_picked(self, var_len=None):
         """ Slot to receive length of y variable picked so we only show
         time dimensions that fit the data.
-        :param len: int length of y variable
+        :param var_len: int length of y variable
         :return: None
         """
-        if len is None:
+        if var_len is None:
             # hide things until the y axis has been picked
             self.setDisabled(True)
         else:
             self.setDisabled(False)
-            self.y_len = len
+            self.y_len = var_len
+            self.start_index.setMaximum(self.y_len)
             self.end_index.setMaximum(self.y_len)
             self.end_index.setValue(self.y_len)
+        self.variable_changed()
 
     def index_pressed(self):
         """ Slot to react to the index radio button being pressed.
@@ -329,7 +374,7 @@ class XPicker(DatasetVarPicker):
         """
         index_begin = self.start_index.value()
         index_end = self.end_index.value()
-        self.values.mask = ((self.values < index_begin) | (self.values > index_end))
+        self.values.mask = ((self.values <= index_begin) | (self.values >= index_end))
 
     def date_pressed(self):
         """ Slot to react to the date radio button being pressed.
@@ -350,9 +395,9 @@ class XPicker(DatasetVarPicker):
         # the console, otherwise we need to run nc.num2date on it
         dataset = str(self.dataset_widget.currentText())
         variable = str(self.variable_widget.currentText())
-        if not variable:
+        if not dataset or not variable:
             return
-        if self.dataset_widget.currentText() == from_console_text:
+        elif dataset == from_console_text:
             self.values = np.ma.masked_array(QtCore.QCoreApplication.instance().dict_of_vars[variable])
         else:
             values = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][:]
@@ -394,31 +439,52 @@ class XPicker(DatasetVarPicker):
 
         dataset = str(self.dataset_widget.currentText())
         variable = str(self.variable_widget.currentText())
-        if self.dataset_widget.currentText() == from_console_text:
+        if dataset and variable and dataset == from_console_text:
+            print dataset
+            print variable
             self.values = QtCore.QCoreApplication.instance().dict_of_vars[variable]
-        else:
+        elif dataset and variable:
             self.values = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][:]
+        else:
+            self.values = []
 
     def variable_changed(self):
+        """ Slot to react to a variable selection being changed.
+        :return: None
+        """
         if self.toggle_index.isChecked():
-            self.other_pressed()
+            self.index_pressed()
         elif self.toggle_date.isChecked():
             self.parse_date(redirect_to_other=True)
         else:  # self.toggle_other.isChecked()
+            import traceback
+            traceback.print_stack()
             self.other_pressed()
 
     def get_config(self):
+        """ Calling self.get_config will collect all the options
+        configured through the UI into a dict for plotting.
+        :return: dict configuration object specifying x-axis
+        """
         dataset = str(self.dataset_widget.currentText())
         variable = str(self.variable_widget.currentText())
         return {"type": self.axis_type,
-                "dataset": dataset,
-                "variable": variable,
-                "values": self.values,
+                "xdataset": dataset,
+                "xvariable": variable,
+                "xdata": self.values,
                 }
 
+    def show_var_condition(self, var):
+        """
+        :param var:
+        :return:
+        """
+        return len(var) == self.y_len
 
 class MiscControls(QtGui.QWidget):
     color_picked = None
+    pick_color = None  # QColorDialog widget
+
     def __init__(self):
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QVBoxLayout()
@@ -435,7 +501,7 @@ class MiscControls(QtGui.QWidget):
         style_picker_layout.addRow("Stroke Color", self.pick_color_button)
         # --------------------
         self.pick_line = QtGui.QComboBox()
-        self.pick_line.addItems(['-', '--', '-.', ':'])
+        self.pick_line.addItems(['-', '--', '-.', ':', '.', 'o', '*', '+', 'x', 's', 'D'])
         style_picker_layout.addRow("Stroke Style", self.pick_line)
         # --------------------
         self.pick_panel = QtGui.QSpinBox()
@@ -446,12 +512,12 @@ class MiscControls(QtGui.QWidget):
         self.layout.addWidget(style_picker)
 
         # Add the control buttons
-        self.reset = QtGui.QPushButton("Reset")
-        self.layout.addWidget(self.reset)
-        self.preview = QtGui.QPushButton("Preview")
-        self.layout.addWidget(self.preview)
         self.add = QtGui.QPushButton("Add to Queue")
         self.layout.addWidget(self.add)
+        self.preview = QtGui.QPushButton("Preview")
+        self.layout.addWidget(self.preview)
+        self.reset = QtGui.QPushButton("Reset")
+        self.layout.addWidget(self.reset)
 
         self.layout.addStretch()
 
@@ -459,7 +525,7 @@ class MiscControls(QtGui.QWidget):
         self.pick_color = QtGui.QColorDialog()
         self.pick_color.currentColorChanged.connect(self.color_selected)
         self.pick_color.colorSelected.connect(self.color_selected)
-        self.pick_color.changeEvent = self.color_select_changeEvent
+        self.pick_color.changeEvent = self.color_select_change_event
         self.pick_color_open_mutex.lock()
         self.pick_color.open()
 
@@ -467,7 +533,7 @@ class MiscControls(QtGui.QWidget):
         self.color_picked = color.name()
         self.pick_color_button.setStyleSheet("background: %s" % color.name())
 
-    def color_select_changeEvent(self, arg):
+    def color_select_change_event(self, arg):
         print QtCore.QEvent.__dict__
         if arg.type() == QtCore.QEvent.ActivationChange:
             if self.pick_color_open_mutex.tryLock():
@@ -477,7 +543,8 @@ class MiscControls(QtGui.QWidget):
     def set_random_color(self):
         self.color_selected(self.make_random_color())
 
-    def make_random_color(self):
+    @staticmethod
+    def make_random_color():
         return QtGui.QColor(
             random.randint(0, 25) * 10,
             random.randint(0, 25) * 10,
@@ -485,9 +552,17 @@ class MiscControls(QtGui.QWidget):
         )
 
     def get_config(self):
-        return {"line-color": self.color_picked,
-                "line-style": self.pick_line.currentText(),
-                "panel-dest": self.pick_panel.value()}
+        if str(self.pick_line.currentText()) in ['.', 'o', '*', '+', 'x', 's', 'D']:
+            line_style = ""
+            line_marker = str(self.pick_line.currentText())
+        else:
+            line_style = str(self.pick_line.currentText())
+            line_marker = ""
+        return {"color": self.color_picked,
+                "linestyle": line_style,
+                "marker": line_marker,
+                "panel-dest": self.pick_panel.value(),
+                }
 
 
 if __name__ == "__main__":

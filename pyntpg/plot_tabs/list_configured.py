@@ -1,4 +1,3 @@
-import numpy as np
 from PyQt4 import QtCore, QtGui
 
 from pyntpg.plot_tabs.panel_configurer import from_console_text
@@ -90,22 +89,18 @@ class ConfiguredListWidget(QtGui.QWidget):
         :return: None
         """
         QtGui.QWidget.__init__(self)
-        self.layout = QtGui.QGridLayout()
+        self.layout = QtGui.QHBoxLayout()
         self.setLayout(self.layout)
         self.list = list_wid
         self.item = item
 
         # Create all the elements
         self.panel = QtGui.QLabel()
-        self.datasetvar = QtGui.QLabel()
-        self.styles = QtGui.QLabel()
-        self.daterange = QtGui.QLabel()
+        self.string = QtGui.QLabel()
 
         # Then add them to the grid
-        self.layout.addWidget(self.panel, 0, 0, 2, 1)
-        self.layout.addWidget(self.datasetvar, 0, 1)
-        self.layout.addWidget(self.styles, 0, 2)
-        self.layout.addWidget(self.daterange, 1, 1, 1, 2)
+        self.layout.addWidget(self.panel)
+        self.layout.addWidget(self.string)
 
         # Populate the text
         self.apply_data(config)
@@ -116,9 +111,9 @@ class ConfiguredListWidget(QtGui.QWidget):
         edit_button = QtGui.QPushButton("edit")
         edit_button.clicked.connect(self.edit_button_pushed)
         self.remove_button = QtGui.QPushButton("remove")
-        self.layout.addWidget(duplicate_button, 0, 3, 2, 1)
-        self.layout.addWidget(edit_button, 0, 4, 2, 1)
-        self.layout.addWidget(self.remove_button, 0, 5, 2, 1)
+        self.layout.addWidget(duplicate_button)
+        self.layout.addWidget(edit_button)
+        self.layout.addWidget(self.remove_button)
 
         # Listen for changes to the data sources
         QtCore.QCoreApplication.instance().dataset_name_changed.connect(self.dataset_namechange)
@@ -128,34 +123,10 @@ class ConfiguredListWidget(QtGui.QWidget):
     def apply_data(self, config):
         # Attach the config
         self.config = config
-        print config
         self.panel.setText("panel %s" % config["panel-dest"])
-        if config["x-axis"]["type"] == "index":
-            # create a key displaydata which contains just the data that should be
-            # put on the graph. This is done by grabbing the mask from the x-axis values
-            # array which we ignore the actual values of and applying it to the data and
-            # then compressing. The make_plot function will look for this
-            tomask = np.ma.array(config["y-axis"]["values"], mask=config["x-axis"]["values"].mask)
-            self.config["displaydata"] = np.ma.compressed(tomask)
-            self.datasetvar.setText("%s::%s" % (config["y-axis"]["dataset"], config["y-axis"]["variable"]))
-        elif config["x-axis"]["type"] == "date":
-            # similar thing as we do for index, but this time we can't ignore the values
-            # inside the x-axis, but we still need to apply that mask to the y-axis values
-            tomask = np.ma.array(config["y-axis"]["values"], mask=config["x-axis"]["values"].mask)
-            self.config["displaydata"] = np.ma.compressed(tomask)
-            self.config["displaydate"] = np.ma.compressed(self.config["x-axis"]["values"])
-            self.datasetvar.setText("%s::%s vs date" % (config["y-axis"]["dataset"], config["y-axis"]["variable"]))
-            self.daterange.setText("[%s - %s]" % (self.config["displaydate"][0], self.config["displaydate"][-1]))
-        else:  # config["x-axis"]["type"] == "other"
-            self.datasetvar.setText("%s::%s vs %s::%s" % (
-                config["y-axis"]["dataset"], config["y-axis"]["variable"],
-                config["x-axis"]["dataset"], config["x-axis"]["variable"]
-            ))
-
-            # TODO: evaluate removing this completely
-            # I dont think displaying the style of the line really adds anything to the utility
-            # of the list_configured widget
-            # self.styles.setText("%s, %spx, %s" % (config["style"], config["width"], config["color"]))
+        self.string.setText(config["string"])
+        """
+        """
 
     def get_config(self):
         """ Get the configuration object attached to (ie. used to create) this object.

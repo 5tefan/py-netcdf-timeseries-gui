@@ -1,6 +1,7 @@
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from PyQt4 import QtGui
+from matplotlib.axes._axes import Axes
 from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
@@ -67,6 +68,7 @@ class PlotTab(QtGui.QWidget):
             )
             for j in range(hpanels):
                 ax = plt.Subplot(self.figure, inner_grid[j])
+                assert isinstance(ax, Axes)
                 # TODO: pull this out into, (somehwere?) that takes
                 # an argument of ax object and does this plotting stuff
                 # on its own so this can be naive of plotting logic,
@@ -74,22 +76,16 @@ class PlotTab(QtGui.QWidget):
                 lines = self.list_configured.get_panel(npanel)
                 if lines:
                     for line in lines:
-                        if line["x-axis"]["type"] == "index":
-                            ax.plot(line["displaydata"],
-                                    color=line["line-color"],
-                                    linestyle=line["line-style"])
-                        elif line["x-axis"]["type"] == "date":
-                            ax.plot(line["displaydate"],
-                                    line["displaydata"],
-                                    color=line["line-color"],
-                                    linestyle=line["line-style"])
-                        else:  # line["x-axis"]["type"] == "other"
-                            ax.plot(line["x-axis"]["values"],
-                                    line["y-axis"]["values"],
-                                    color=line["line-color"],
-                                    linestyle=line["line-style"])
+                        assert isinstance(line, dict), "line config should be a dict"
+                        [getattr(ax, key)(line.pop(key)) for key in line if hasattr(ax, key)]
+                        filter_keys = ["color", "linestyle", "marker", "xdata", "ydata"]
+                        line_filtered = {key: line[key] for key in line if key in filter_keys}
+                        if line["type"] == "date":
+                            ax.xaxis.axis_date()
+                        ax.plot([0], [0], **line_filtered)  # see http://stackoverflow.com/q/8979258
                     self.figure.add_subplot(ax)
                 npanel += 1
+        self.figure.autofmt_xdate()
         self.figure.tight_layout()
 
         # Now create the new window to display the plot

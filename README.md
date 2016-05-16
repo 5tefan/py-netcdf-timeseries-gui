@@ -1,7 +1,7 @@
 # Python NetCDF Time Series Plot GUI
 
-The Python NetCDF Timeseries Plot GUI (pyntpg) is a tool to visualize time
-series data originating in NetCDF format. 
+The Python NetCDF Time Series Plot GUI (pyntpg) is a tool to visualize time
+series data in NetCDF format. 
 
 ## Overview 
 
@@ -11,12 +11,12 @@ series and scatter plots without writing any code. The integrated Ipython
 console allows the user to perform any kind of data processing possible
 in Python and display the results. 
 
-The software package stands on the shoulders of giants, piecing together:
+The software package stands on the shoulders of giants, making use of:
 
 * PyQt4 Python bindings to the Qt UI library
 * netcdf4-python interface to the netCDF C library
 * matplotlib python visualization and plotting library
-* Jupyter IPython console and kernel
+* Jupyter IPython console and kernel, qtconsole
  
 The scope of the program is inspired by the Unix philosophy: do one thing
 and do it well. While we could work toward an interface reading data from
