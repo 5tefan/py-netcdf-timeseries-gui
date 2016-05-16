@@ -12,6 +12,7 @@ console allows the user to perform any kind of data processing possible
 in Python and display the results. 
 
 The software package stands on the shoulders of giants, piecing together:
+
 * PyQt4 Python bindings to the Qt UI library
 * netcdf4-python interface to the netCDF C library
 * matplotlib python visualization and plotting library
