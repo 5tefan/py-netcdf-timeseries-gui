@@ -12,10 +12,10 @@ console allows the user to perform any kind of data processing possible
 in Python and display the results. 
 
 The software package stands on the shoulders of giants, piecing together:
- -  PyQt4 Python bindings to the Qt UI library
- -  netcdf4-python interface to the netCDF C library
- -  matplotlib python visualization and plotting library
- -  Jupyter IPython console and kernel
+ *  PyQt4 Python bindings to the Qt UI library
+ *  netcdf4-python interface to the netCDF C library
+ *  matplotlib python visualization and plotting library
+ *  Jupyter IPython console and kernel
  
 The scope of the program is inspired by the Unix philosophy: do one thing
 and do it well. While we could work toward an interface reading data from
