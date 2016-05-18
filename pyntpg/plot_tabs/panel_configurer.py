@@ -42,6 +42,10 @@ class PanelConfigurer(QtGui.QWidget):
         base.update(self.x_picker.get_config())
         base.update(self.y_picker.get_config())
 
+        # enable the grid
+        base["grid"] = (True,)  # translates to a call ax.grid(True)
+        base["legend"] = {"loc": "best"}
+
         # create a key displaydata which contains just the data that should be
         # put on the graph. This is done by grabbing the mask from the x-axis values
         # array which we ignore the actual values of and applying it to the data and
@@ -54,21 +58,24 @@ class PanelConfigurer(QtGui.QWidget):
 
         tomasky = np.ma.array(base["ydata"], mask=mask)
         tomaskx = np.ma.array(base["xdata"], mask=mask)
-        self.base["xdata"] = np.ma.compressed(tomaskx)
-        self.base["ydata"] = np.ma.compressed(tomasky)
+        base["xdata"] = np.ma.compressed(tomaskx)
+        base["ydata"] = np.ma.compressed(tomasky)
 
         if base["type"] == "index":
             base["string"] = "%s::%s vs index" % (base["ydataset"], base["yvariable"])
+            base["label"] = base["yvariable"]
         elif base["type"] == "date":
             base["string"] = "%s::%s vs time (%s - %s)" % (
                 base["ydataset"], base["yvariable"],
                 base["xdata"][0], base["xdata"][-1]
             )
+            base["label"] = base["yvariable"]
         else:  # base["type"] == "other"
             base["string"] = "%s::%s vs %s::%s" % (
                 base["ydataset"], base["yvariable"],
                 base["xdataset"], base["xvariable"]
             )
+            base["label"] = "%s vs %s" % (base["yvariable"], base["xvariable"])
 
         return base
 
@@ -144,8 +151,8 @@ class DatasetVarPicker(QtGui.QWidget):
         else:  # Otherwise must fetch from the netcdf obj
             try:
                 for var in QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables:
-                    var_value = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var]
-                    if self.show_var_condition(var_value):
+                    nc_var = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var]
+                    if self.show_var_condition(nc_var[:], nc_var):
                         self.variable_widget.addItem(var)
             except KeyError:
                 pass
@@ -160,7 +167,7 @@ class DatasetVarPicker(QtGui.QWidget):
             # https://docs.google.com/viewer?url=https://sites.google.com/site/kennethchristiansen/DUI.html
             self.variable_widget.setCurrentIndex(max(self.variable_widget.findText(selected), 0))
 
-    def show_var_condition(self, var):
+    def show_var_condition(self, var, nc_obj=None):
         """ Should the variable be shown in the combobox?
         :param var: decide if this variable should be shown
         :return: Boolean, show or don't show in combobox
@@ -172,9 +179,9 @@ class YPicker(DatasetVarPicker):
     """ Override the DatasetVarPicker and add some functionality
     specific to picking dimensions if the selected var has more than 1.
     """
-    y_picked = QtCore.pyqtSignal(int)  # emit the dimensions of the y_variable picked
+    y_picked = QtCore.pyqtSignal(int, dict)  # emit the dimensions of the y_variable picked
     needs_flatten = False
-    flattenings = []
+    flattenings = {}
 
     def __init__(self):
         DatasetVarPicker.__init__(self, "y axis picker")
@@ -194,15 +201,15 @@ class YPicker(DatasetVarPicker):
         for i in reversed(range(self.dimension_picker_layout.count())):
             self.dimension_picker_layout.itemAt(i).widget().deleteLater()
         self.needs_flatten = False  # assume flat at start
-        self.flattenings = []
+        self.flattenings = {}
         current_dataset = self.dataset_widget.currentText()
         if current_dataset and current_dataset != from_console_text:  # assume conosle_vars don't need flatten
             nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
             var_name = self.variable_widget.itemText(var_index)
-            if var_name and len(nc_obj.variables[var_name].shape) > 1:
+            dim_len = len(nc_obj.variables[var_name].dimensions)
+            if var_name and dim_len > 1:
                 self.needs_flatten = True
-                self.flattenings = []
-                for dim in nc_obj.variables[var_name].dimensions:
+                for i, dim in enumerate(nc_obj.variables[var_name].dimensions):
                     # create the container to hold the slices
                     slice_container = QtGui.QWidget()
                     slice_container_layout = QtGui.QHBoxLayout()
@@ -215,13 +222,17 @@ class YPicker(DatasetVarPicker):
                     end_spinbox = QtGui.QSpinBox()
                     end_spinbox.setMaximum(nc_obj.dimensions[dim].size)
                     end_spinbox.valueChanged.connect(self.emit_y_picked)
+                    if i == dim_len - 1:  # if it's the last dimension take only 1
+                        end_spinbox.setValue(1)
+                    else:  # otherwise take them all
+                        end_spinbox.setValue(nc_obj.dimensions[dim].size)
                     begin_spinbox.valueChanged.connect(lambda x, end_spinbox=end_spinbox: end_spinbox.setMinimum(x))
                     slice_container_layout.addWidget(begin_spinbox)
                     slice_container_layout.addWidget(QtGui.QLabel(":"))
                     slice_container_layout.addWidget(end_spinbox)
 
                     # Add spinboxes to self.flattenings to look up later
-                    self.flattenings.append([begin_spinbox, end_spinbox])
+                    self.flattenings[dim] = (begin_spinbox, end_spinbox)
                     self.dimension_picker_layout.addRow(dim, slice_container)
         self.emit_y_picked()
 
@@ -233,16 +244,18 @@ class YPicker(DatasetVarPicker):
         """
         current_dataset = self.dataset_widget.currentText()
         var_name = self.variable_widget.currentText()
+        dim_slices = {}
         if not current_dataset or not var_name:
             return  # abort if there is nothing selected
         elif current_dataset == from_console_text:
             length = len(QtCore.QCoreApplication.instance().dict_of_vars[var_name])
         elif self.needs_flatten:  # nc_obj var needs flattening
             var = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var_name][:]
-            length = len(self.make_flat(var))
+            var, dim_slices = self.make_flat(var)
+            length = len(var)
         else:  # else, is nc_obj var that doesn't need flattening
             length = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var_name].size
-        self.y_picked.emit(length)
+        self.y_picked.emit(length, dim_slices)
 
     def make_flat(self, var):
         """ Flatten the values in var if they need flattening, ie, if
@@ -250,10 +263,21 @@ class YPicker(DatasetVarPicker):
         :param var: List values to flatten
         :return: list: flattened values from var
         """
+        dim_slices = {}
         if self.needs_flatten:  # apply the flattening
-            slices = [slice(f[0].value(), f[1].value()) for f in self.flattenings]
-            var = var[slices].flatten()
-        return var
+            current_dataset = self.dataset_widget.currentText()
+            if current_dataset and current_dataset != from_console_text:  # assume conosle_vars don't need flatten
+                nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
+                var_name = self.variable_widget.currentText()
+                slices = []
+                for dim in nc_obj.variables[var_name].dimensions:
+                    if dim in self.flattenings.keys():
+                        dim_slices[dim] = slice(*(f.value() for f in self.flattenings[dim]))
+                    else:
+                        dim_slices[dim] = slice(None)
+                    slices.append(dim_slices[dim])
+                var = var[slices].flatten()
+        return var, dim_slices
 
     def get_config(self):
         """ Calling self.get_config will collect all the options
@@ -268,7 +292,7 @@ class YPicker(DatasetVarPicker):
         else:
             values = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][:]
         if self.needs_flatten:  # nc_obj var needs flattening
-            values = self.make_flat(values)
+            values = self.make_flat(values)[0]
         return {"ydataset": dataset,
                 "yvariable": variable,
                 "ydata": values,
@@ -280,7 +304,8 @@ class XPicker(DatasetVarPicker):
     specific to picking a date range.
     """
     axis_type = None  # track the type of axis selected, "index", "date", or "other"
-    y_len = None  # track y length so we can ensure shape matches
+    y_var_len = None  # track y length so we can ensure shape matches
+    y_dim_slices = {}
     values = []  # store the values selected
 
     def __init__(self):
@@ -332,7 +357,7 @@ class XPicker(DatasetVarPicker):
         self.index_pressed()
         self.y_picked(None)
 
-    def y_picked(self, var_len=None):
+    def y_picked(self, var_len=None, dim_slices=None):
         """ Slot to receive length of y variable picked so we only show
         time dimensions that fit the data.
         :param var_len: int length of y variable
@@ -343,10 +368,11 @@ class XPicker(DatasetVarPicker):
             self.setDisabled(True)
         else:
             self.setDisabled(False)
-            self.y_len = var_len
-            self.start_index.setMaximum(self.y_len)
-            self.end_index.setMaximum(self.y_len)
-            self.end_index.setValue(self.y_len)
+            self.y_var_len = var_len
+            self.y_dim_slices = dim_slices
+            self.start_index.setMaximum(self.y_var_len)
+            self.end_index.setMaximum(self.y_var_len)
+            self.end_index.setValue(self.y_var_len)
         self.variable_changed()
 
     def index_pressed(self):
@@ -365,8 +391,8 @@ class XPicker(DatasetVarPicker):
         # If self.axis_type is "index", we'll create a masked array
         # masking everything but the part requested. May use
         # np.ma.compressed(values) later to get only unmasked values
-        if self.y_len is not None:  # make sure something has been selected
-            self.values = np.ma.arange(self.y_len)
+        if self.y_var_len is not None:  # make sure something has been selected
+            self.values = np.ma.arange(self.y_var_len)
 
     def index_changed(self):
         """ Slot to react to changing the index slice range selection.
@@ -407,6 +433,7 @@ class XPicker(DatasetVarPicker):
             except (ValueError, IndexError) as _:
                 if redirect_to_other:
                     return self.other_pressed()
+        self.values = self.flatten_if_needed(self.values)
         self.start_time.setMaximumDateTime(self.values[-1])
         self.start_time.setMinimumDateTime(self.values[0])
         self.start_time.setDateTime(self.values[0])
@@ -447,6 +474,25 @@ class XPicker(DatasetVarPicker):
             self.values = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][:]
         else:
             self.values = []
+        self.values = self.flatten_if_needed(self.values)
+
+    def flatten_if_needed(self, var):
+        """
+        :param var: The values to flatten
+        :type var: np.ndarray
+        """
+        current_dataset = self.dataset_widget.currentText()
+        if current_dataset and current_dataset != from_console_text:  # assume conosle_vars don't need flatten
+            nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
+            var_name = self.variable_widget.currentText()
+            slices = []
+            for dim in nc_obj.variables[var_name].dimensions:
+                if dim in self.y_dim_slices.keys():
+                    slices.append(self.y_dim_slices[dim])
+                else:
+                    slices.append(slice(None))
+            var = var[slices].flatten()
+        return var
 
     def variable_changed(self):
         """ Slot to react to a variable selection being changed.
@@ -457,8 +503,6 @@ class XPicker(DatasetVarPicker):
         elif self.toggle_date.isChecked():
             self.parse_date(redirect_to_other=True)
         else:  # self.toggle_other.isChecked()
-            import traceback
-            traceback.print_stack()
             self.other_pressed()
 
     def get_config(self):
@@ -474,12 +518,30 @@ class XPicker(DatasetVarPicker):
                 "xdata": self.values,
                 }
 
-    def show_var_condition(self, var):
+    def show_var_condition(self, var_list, nc_var=None):
         """
-        :param var:
+        :param var_list:
+        :type var_list: np.ndarray
+        :param nc_var:
+        :type nc_var: nc._netCDF4.Variable
         :return:
         """
-        return len(var) == self.y_len
+        if nc_var is None or len(nc_var.dimensions) == 1:
+            return len(var_list) == self.y_var_len
+        elif nc_var is not None and len(nc_var.dimensions) > 1:
+            # then try to flatten
+            slices = []
+            for dim in nc_var.dimensions:
+                if dim in self.y_dim_slices.keys():
+                    slices.append(self.y_dim_slices[dim])
+                else:
+                    slices.append(slice(None))
+            return len(var_list[slices].flatten()) == self.y_var_len
+        else:
+            return False
+
+
+            
 
 class MiscControls(QtGui.QWidget):
     color_picked = None

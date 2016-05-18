@@ -1,6 +1,6 @@
-from PyQt4 import QtCore, QtGui
+import copy
 
-from pyntpg.plot_tabs.panel_configurer import from_console_text
+from PyQt4 import QtGui
 
 """ Change to now store the data to be plotting inside
 each ConfiguredListWidget instead of just metaish data
@@ -50,9 +50,25 @@ class ListConfigured(QtGui.QWidget):
         self.layout.setSpacing(0)
         self.setLayout(self.layout)
 
+        header = QtGui.QWidget()
+        self.header_layout = QtGui.QHBoxLayout()
+        header.setLayout(self.header_layout)
+
         title = QtGui.QLabel("Queue to plot")
-        self.layout.addWidget(title)
+        title.setContentsMargins(0, 6, 0, 6)
+        self.header_layout.addWidget(title)
+
+        self.header_layout.addStretch()
+
+        self.remove_button = QtGui.QPushButton("Remove line")
+        self.remove_button.setVisible(False)
+        self.remove_button.clicked.connect(self.remove_line_clicked)
+        self.header_layout.addWidget(self.remove_button)
+
+        # self.layout.addWidget(title)
+        self.layout.addWidget(header)
         self.list = QtGui.QListWidget()
+        self.list.itemClicked.connect(self.line_item_selected)
         self.layout.addWidget(self.list)
 
     def add_new_config(self, data):
@@ -60,12 +76,31 @@ class ListConfigured(QtGui.QWidget):
         :param data: dict config object for new line being added
         :return: None
         """
+        # TODO: sublcass item override comparison operators so sorting works
         item = QtGui.QListWidgetItem()
-        widget = ConfiguredListWidget(self.list, item, data)
-        widget.remove_button.clicked.connect(lambda: self.list.takeItem(self.list.row(item)))
+        widget = ConfiguredListWidget(self, item, data)
+        widget.remove_action.triggered.connect(lambda: self.remove_line_clicked(self.list.row(item)))
         item.setSizeHint(widget.sizeHint())
         self.list.addItem(item)
         self.list.setItemWidget(item, widget)
+        self.list.setItemSelected(item, True)
+        self.list.setSortingEnabled(True)
+        self.remove_button.setVisible(True)
+
+    def remove_line_clicked(self, item=None):
+        if item is not None:
+            self.list.takeItem(item)
+        else:
+            for item in self.list.selectedItems():
+                self.list.takeItem(self.list.row(item))
+        if len(self.list) == 0:
+            self.remove_button.setVisible(False)
+
+    def line_item_selected(self):
+        if len(self.list.selectedItems()) == 1:
+            self.remove_button.setText("Remove line")
+        else:
+            self.remove_button.setText("Remove lines")
 
     def get_panel(self, npanel):
         """ Get the configurations attached to panel number npanel
@@ -76,70 +111,65 @@ class ListConfigured(QtGui.QWidget):
         widgets = [self.list.itemWidget(item) for item in items]
         return [line.get_config() for line in widgets if line.get_config()["panel-dest"] == npanel]
 
-class ConfiguredListWidget(QtGui.QWidget):
+
+class ConfiguredListWidget(QtGui.QLabel):
     """ The actual widget that shows up as each list item
     in the ListConfigured widget above.
     """
-    displaydate = None  # result of np.ma.compressed on the optional date array
 
     # TODO: connect to app inst for change dataset events so preconfigured panels still plot post dataset changes name
-    def __init__(self, list_wid, item, config):
+    def __init__(self, listconf_wid, item, config):
         """ Create a basic QWidget item intended to go inside the list of configured lines
         :param config: dict of attributes specifying what/how to plot
         :return: None
         """
-        QtGui.QWidget.__init__(self)
-        self.layout = QtGui.QHBoxLayout()
-        self.setLayout(self.layout)
-        self.list = list_wid
+        super(ConfiguredListWidget, self).__init__()
+        self.setContentsMargins(10, 10, 0, 10)
+        self.list = listconf_wid
         self.item = item
-
-        # Create all the elements
-        self.panel = QtGui.QLabel()
-        self.string = QtGui.QLabel()
-
-        # Then add them to the grid
-        self.layout.addWidget(self.panel)
-        self.layout.addWidget(self.string)
 
         # Populate the text
         self.apply_data(config)
 
-        # TODO: move these buttons to the list widget, have them active on line select
-        duplicate_button = QtGui.QPushButton("duplicate")
-        duplicate_button.clicked.connect(self.duplicate_button_pushed)
-        edit_button = QtGui.QPushButton("edit")
-        edit_button.clicked.connect(self.edit_button_pushed)
-        self.remove_button = QtGui.QPushButton("remove")
-        self.layout.addWidget(duplicate_button)
-        self.layout.addWidget(edit_button)
-        self.layout.addWidget(self.remove_button)
+        # Create the context menu shown on right click
+        self.menu = QtGui.QMenu()
+        self.menu.addAction("Change panel", self.edit_action)
+        self.menu.addAction("Duplicate", self.duplicate_button_pushed)
+        self.remove_action = QtGui.QAction("Remove", self)
+        self.menu.addAction(self.remove_action)
 
         # Listen for changes to the data sources
-        QtCore.QCoreApplication.instance().dataset_name_changed.connect(self.dataset_namechange)
-        QtCore.QCoreApplication.instance().dataset_removed.connect(self.dataset_removed)
-        QtCore.QCoreApplication.instance().console_vars_updated.connect(self.console_vars_updated)
+        # not using these because now that data is stored in the line,
+        # we don't go back to the datasets or vars to reference it. It's a tradeoff
+        # with handling date in the panel_configurerer and separation of concerns but
+        # now, edit can't change any of the data actaully stored, including indecies or slicing
+        # QtCore.QCoreApplication.instance().dataset_name_changed.connect(self.dataset_namechange)
+        # QtCore.QCoreApplication.instance().dataset_removed.connect(self.dataset_removed)
+        #QtCore.QCoreApplication.instance().console_vars_updated.connect(self.console_vars_updated)
 
-    def apply_data(self, config):
+    def apply_data(self, config=None):
         # Attach the config
-        self.config = config
-        self.panel.setText("panel %s" % config["panel-dest"])
-        self.string.setText(config["string"])
-        """
-        """
+        if config is not None:
+            self.config = config
+        self.setText("panel %s : %s" % (self.config["panel-dest"], self.config["string"]))
 
     def get_config(self):
         """ Get the configuration object attached to (ie. used to create) this object.
         :return: dict config object attached to the list item
         """
-        return self.config
+        return copy.deepcopy(self.config)
 
     def duplicate_button_pushed(self):
-        pass
+        self.list.add_new_config(self.get_config())
 
-    def edit_button_pushed(self):
-        pass
+    def edit_action(self):
+        newpanel = QtGui.QInputDialog.getInt(None, "move to panel", "panel number")[0]
+        if newpanel:
+            self.config["panel-dest"] = newpanel
+            self.apply_data()
 
+    # TODO: evaluate complete removal of these
+    """
     def dataset_namechange(self, from_str, to_str):
         if self.config and self.config["dataset"] == from_str:
             self.config["dataset"] = to_str
@@ -155,6 +185,10 @@ class ConfiguredListWidget(QtGui.QWidget):
             if self.config["var"] not in var_list:
                 self.list.takeItem(self.list.row(self.item))
                 self.deleteLater()
+    """
+
+    def contextMenuEvent(self, QContextMenuEvent):
+        self.menu.popup(QtGui.QCursor.pos())
 
 if __name__ == "__main__":
     import sys

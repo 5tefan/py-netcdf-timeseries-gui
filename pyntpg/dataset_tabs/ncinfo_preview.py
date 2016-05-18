@@ -19,6 +19,7 @@ class NcinfoPreview(QtGui.QWidget):
         status_layout.setMargin(0)
         status.setLayout(status_layout)
         label = QtGui.QLabel("Dataset")
+        label.setContentsMargins(0, 6, 10, 6)
         status_layout.addWidget(label)
         self.progress = QtGui.QProgressBar()
         self.progress.setRange(0, 0)
