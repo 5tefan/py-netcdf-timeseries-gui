@@ -7,6 +7,7 @@ except ImportError:
 from pyntpg.dataset_tabs.main_widget import DatasetTabs
 from pyntpg.plot_tabs.main_widget import PlotTabs
 from pyntpg.qipython import QIPython
+from pyntpg.plot_tabs.layout_picker import DimesnionChangeDialog
 
 
 class Application(QtGui.QApplication):
@@ -28,6 +29,26 @@ class Application(QtGui.QApplication):
 
     def __init__(self, *args):
         QtGui.QApplication.__init__(self, *args)
+
+        # Use the plastique theme. Take our to default to system theme
+        self.setStyle(QtGui.QStyleFactory.create("plastique"))
+
+        # Set the default font
+        font = QtGui.QFont()
+        font.setFamily(font.defaultFamily())
+        self.setFont(font)
+
+        # Font metrics will give us the pixel height of text. Use that to set
+        # the max height of buttons on the interface
+        fm = QtGui.QFontMetrics(font)
+        min_height = fm.height()
+        max_height = int(float(fm.height())*1.2)
+        self.setStyleSheet("QPushButton { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
+                           "QComboBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
+                           "QSpinBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
+                           "QDateTimeEdit { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
+                           % {"max_height": max_height, "min_height": min_height})
+
         self.window = MainWindow()
         self.window.show()
 
@@ -49,7 +70,6 @@ class Application(QtGui.QApplication):
     def update_console_vars(self, var_dict):
         self.dict_of_vars = var_dict
         self.console_vars_updated.emit(var_dict)
-
 
 
 class MainWindow(QtGui.QMainWindow):
@@ -112,13 +132,23 @@ class MainWindow(QtGui.QMainWindow):
         # Plot menu
         menu_plot = QtGui.QMenu("&Plot", self)
         menu_plot.addAction("Change plot title", self.plot_tabs.tabBar().mouseDoubleClickEvent)
+        menu_plot.addAction("Change layout dims", self.change_layout_dims)
         self.menuBar().addMenu(menu_plot)
 
         # Help menu
         menu_help = QtGui.QMenu("&Help", self)
         self.menuBar().addMenu(menu_help)
 
+    def change_layout_dims(self):
+        result = DimesnionChangeDialog().get()
+        if result is not None:
+            nrow, ncol = result
+            self.plot_tabs.currentWidget().widget().layout_picker.make_splitters(nrow, ncol)
+
     def open_ipython(self):
+        """ Slot for the menu option to show and/or raise the ipython widget.
+        :return: None
+        """
         self.ipython_wid.show()
         self.ipython_wid.raise_()
 

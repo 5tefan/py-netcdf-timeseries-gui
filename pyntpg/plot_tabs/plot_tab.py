@@ -22,6 +22,8 @@ class PlotTab(QtGui.QWidget):
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QGridLayout()
         self.setLayout(self.layout)
+        # Odd, min height must be set for the vertical only scroll area to work
+        self.setMinimumWidth(1)
 
         self.layout_picker = LayoutPicker()
         self.layout_picker.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
@@ -37,10 +39,8 @@ class PlotTab(QtGui.QWidget):
         # Set up communication channels between ListConfigured and panelConfigurer
         self.panel_config.signal_new_config.connect(self.list_configured.add_new_config)
 
-        self.plot_button = QtGui.QPushButton("Create Plot")
-        self.plot_button.setStyleSheet("background: #B2F6A8")
-        self.plot_button.clicked.connect(self.make_plot)
-        self.layout.addWidget(self.plot_button, 2, 0, 1, 2)
+        # connect the ListConfigured plot button to self.make_plot
+        self.list_configured.plot_button.clicked.connect(self.make_plot)
 
     def make_plot(self):
         """ Connected to the plot button. On click, it:

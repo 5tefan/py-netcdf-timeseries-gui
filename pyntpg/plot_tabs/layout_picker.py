@@ -23,14 +23,29 @@ class LayoutPicker(QtGui.QWidget):
         self.layout = QtGui.QVBoxLayout()
         self.setLayout(self.layout)
 
-        title = QtGui.QLabel("Customize panel layout")
+        title = QtGui.QLabel("Panel Layout")
         self.layout.addWidget(title)
 
+        self.visible_widgets = []
+        self.widgets = []
+        self.vcount = 0  # number of rows
+        self.hcount = 0  # number of cols
+
+        self.vsplitter = None
+        self.make_splitters(2, 1)
+
+    def make_splitters(self, height, width):
         # some variables we are going to need to keep track of everything
         self.visible_widgets = []
         self.widgets = []
-        self.vcount = 3  # number of rows
-        self.hcount = 3  # number of cols
+        self.vcount = width  # number of rows
+        self.hcount = height  # number of cols
+
+        try:
+            self.vsplitter.deleteLater()
+        except AttributeError:
+            pass
+
 
         self.vsplitter = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.vsplitter.setHandleWidth(2)
@@ -53,6 +68,7 @@ class LayoutPicker(QtGui.QWidget):
         self.vsplitter.splitterMoved.connect(self.recalculate_visible_vertical)
 
         self.layout.addWidget(self.vsplitter)
+
 
     def recalculate_visible_horizontal(self):
         """ When a horizontal Slider is moved, see if it closed or opened
@@ -82,14 +98,14 @@ class LayoutPicker(QtGui.QWidget):
             if vwidth == 0:
                 # if the row is hidden, take the widget out of visible_widgets
                 for j in range(self.hcount):
-                    widget = self.widgets[(i * self.vcount) + j]
+                    widget = self.widgets[(i * self.hcount) + j]
                     if widget in self.visible_widgets:
                         self.visible_widgets.remove(widget)
             else:
                 # otherwise, it might have been hidden and shown now so put
                 # it back in visibile_widgets, except if it has zero width
                 for j, hwidth in enumerate(self.vsplitter.widget(i).sizes()):
-                    widget = self.widgets[(i * self.vcount) + j]
+                    widget = self.widgets[(i * self.hcount) + j]
                     if hwidth > 0 and widget not in self.visible_widgets:
                         self.visible_widgets.append(widget)
         self.label_frames()
@@ -128,6 +144,31 @@ class LayoutPicker(QtGui.QWidget):
                 width_ratios.append(width_ratio)
         return {"height_ratios": height_ratios, "width_ratios": width_ratios}
 
+
+class DimesnionChangeDialog(QtGui.QDialog):
+    def __init__(self):
+        super(DimesnionChangeDialog, self).__init__()
+        self.layout = QtGui.QFormLayout()
+        self.setLayout(self.layout)
+
+        # add the height width inputs
+        self.height = QtGui.QSpinBox()
+        self.height.setMinimum(1)
+        self.layout.addRow("number ools", self.height)
+        self.width = QtGui.QSpinBox()
+        self.width.setMinimum(1)
+        self.layout.addRow("number rows", self.width)
+
+        # add the cancel/Ok at bottom
+        buttonbox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel,
+                                           QtCore.Qt.Horizontal, self)
+        self.layout.addRow(buttonbox)
+        self.connect(buttonbox, QtCore.SIGNAL("accepted()"), self, QtCore.SLOT("accept()"))
+        self.connect(buttonbox, QtCore.SIGNAL("rejected()"), self, QtCore.SLOT("reject()"))
+
+    def get(self):
+        if self.exec_() == QtGui.QDialog.Accepted:
+            return self.height.value(), self.width.value()
 
 # For testing individual widget
 if __name__ == "__main__":

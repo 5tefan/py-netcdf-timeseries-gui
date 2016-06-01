@@ -8,7 +8,9 @@ class PlotTabs(QtGui.QTabWidget):
         QtGui.QTabWidget.__init__(self)
         self.mutex = QtCore.QMutex()
         self.setTabBar(PlotTabBar())
-        self.addTab(PlotTab(), "plot")
+        scrollarea = VerticalScrollArea()
+        scrollarea.setWidget(PlotTab())
+        self.addTab(scrollarea, "plot")
 
         # Add the "+" tab and make sure it has no close button
         plus_tab = QtGui.QWidget()
@@ -23,7 +25,9 @@ class PlotTabs(QtGui.QTabWidget):
         maxindex = self.count() - 1
         if ((index == maxindex or index == -1) and
                 self.mutex.tryLock()):
-            self.insertTab(maxindex, PlotTab(), "plot")
+            scrollarea = VerticalScrollArea()
+            scrollarea.setWidget(PlotTab())
+            self.insertTab(maxindex, scrollarea, "plot")
             self.setCurrentIndex(maxindex)
             self.mutex.unlock()
 
@@ -69,3 +73,17 @@ class PlotTabBar(QtGui.QTabBar):
         self.setTabText(self.__edited_tab, self.__edit.text())
         self.__edit.deleteLater()
         self.mutex.unlock()
+
+class VerticalScrollArea(QtGui.QScrollArea):
+    def __init__(self):
+        super(VerticalScrollArea, self).__init__()
+        self.setWidgetResizable(True)
+        self.setFrameStyle(QtGui.QFrame.NoFrame)
+        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+
+    def eventFilter(self, o, e):
+        if o and o == self.widget() and e.type() == QtCore.QEvent.Resize:
+            self.widget().resize(e.size())
+            #self.setMinimumWidth(self.widget().minimumSizeHint().width() + self.verticalScrollBar().width())
+        return QtGui.QScrollArea.eventFilter(self, o, e)

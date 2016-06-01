@@ -17,6 +17,8 @@ class PanelConfigurer(QtGui.QWidget):
         QtGui.QWidget.__init__(self)
         self.layout = QtGui.QHBoxLayout()
         self.setLayout(self.layout)
+        self.setMinimumHeight(200)
+        self.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
 
         # widget in charge of picking variable to plot as time series
         self.y_picker = YPicker()
@@ -88,7 +90,7 @@ class DatasetVarPicker(QtGui.QWidget):
     Broken out from the two so that that code doesnt get duplicated.
     """
 
-    def __init__(self, title=None, hook=None):
+    def __init__(self, title=None):
         """ Set up the layout, then add title, from and var widgets.
         :param title: String title for the panel
         :param hook: Boolean exit before adding combobox selections
@@ -102,21 +104,21 @@ class DatasetVarPicker(QtGui.QWidget):
         if title is not None:
             self.layout.addWidget(QtGui.QLabel(title))
 
-        # If there is a hook callback, call it
-        if hasattr(hook, "__call__"):
-            hook()
-
         # container for the dataset and var selection comboboxes
         self.dataset_var_widget = QtGui.QWidget()
-        dataset_var_widget_layout = QtGui.QFormLayout()
-        self.dataset_var_widget.setLayout(dataset_var_widget_layout)
+        self.dataset_var_layout = QtGui.QFormLayout()
+        self.dataset_var_widget.setLayout(self.dataset_var_layout)
         # -----------
         self.dataset_widget = QtGui.QComboBox()
         self.dataset_widget.addItem(from_console_text)
         self.dataset_widget.currentIndexChanged.connect(self.update_variables)
-        dataset_var_widget_layout.addRow("From", self.dataset_widget)
+        self.dataset_widget.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
+        self.dataset_widget.setMaximumWidth(200)
+        self.dataset_var_layout.addRow("Source", self.dataset_widget)
         self.variable_widget = QtGui.QComboBox()
-        dataset_var_widget_layout.addRow("Variable", self.variable_widget)
+        self.variable_widget.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
+        self.variable_widget.setMaximumWidth(200)
+        self.dataset_var_layout.addRow("Var", self.variable_widget)
         self.layout.addWidget(self.dataset_var_widget)
         # -----------
         try:  # Can't do these if eg. running from main in this file
@@ -184,22 +186,33 @@ class YPicker(DatasetVarPicker):
     flattenings = {}
 
     def __init__(self):
-        DatasetVarPicker.__init__(self, "y axis picker")
+        DatasetVarPicker.__init__(self, "y axis")
         self.variable_widget.currentIndexChanged.connect(self.check_dims)
 
         self.dimension_picker_widget = QtGui.QWidget()
-        # TODO: change this to a vboxlayout and put labels above range.
-        self.dimension_picker_layout = QtGui.QFormLayout()
+        self.dimension_picker_layout = QtGui.QVBoxLayout()
+        self.dimension_picker_layout.setSpacing(0)
         self.dimension_picker_widget.setLayout(self.dimension_picker_layout)
+        self.dimension_picker_scroll = QtGui.QScrollArea()
+        self.dimension_picker_scroll.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        self.dimension_picker_scroll.setWidget(self.dimension_picker_widget)
+        self.dimension_picker_scroll.setWidgetResizable(True)
+        self.dimension_picker_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
 
-        self.layout.addWidget(self.dimension_picker_widget)
         self.layout.addStretch()
-        # TODO: add the dimension picker here
 
     def check_dims(self, var_index):
+        # reset everything to no flattening needed, in case we don't need to do any
+        # and then add back all the flattening stuff if we do end up needing flattening
+
         # delete anything that was in self.dimension_picker_layout previously
         for i in reversed(range(self.dimension_picker_layout.count())):
             self.dimension_picker_layout.itemAt(i).widget().deleteLater()
+        # remove the dimension scroll area
+        self.layout.removeWidget(self.dimension_picker_scroll)
+        # BUG? remove the scroll widget from the layout leaves the frame,
+        # so manually have to set the frame shape to no frame
+        self.dimension_picker_scroll.setFrameShape(QtGui.QFrame.NoFrame)
         self.needs_flatten = False  # assume flat at start
         self.flattenings = {}
         current_dataset = self.dataset_widget.currentText()
@@ -210,6 +223,8 @@ class YPicker(DatasetVarPicker):
             if var_name and dim_len > 1:
                 self.needs_flatten = True
                 for i, dim in enumerate(nc_obj.variables[var_name].dimensions):
+                    # enumerate with i to auto set the last dim to size 1
+
                     # create the container to hold the slices
                     slice_container = QtGui.QWidget()
                     slice_container_layout = QtGui.QHBoxLayout()
@@ -217,7 +232,7 @@ class YPicker(DatasetVarPicker):
 
                     # create dim spinboxes and add them to layout
                     begin_spinbox = QtGui.QSpinBox()
-                    begin_spinbox.setMaximum(nc_obj.dimensions[dim].size)
+                    begin_spinbox.setMaximum(nc_obj.dimensions[dim].size-1)
                     begin_spinbox.valueChanged.connect(self.emit_y_picked)
                     end_spinbox = QtGui.QSpinBox()
                     end_spinbox.setMaximum(nc_obj.dimensions[dim].size)
@@ -226,14 +241,22 @@ class YPicker(DatasetVarPicker):
                         end_spinbox.setValue(1)
                     else:  # otherwise take them all
                         end_spinbox.setValue(nc_obj.dimensions[dim].size)
-                    begin_spinbox.valueChanged.connect(lambda x, end_spinbox=end_spinbox: end_spinbox.setMinimum(x))
+                    begin_spinbox.valueChanged.connect(lambda x, end_spinbox=end_spinbox: end_spinbox.setMinimum(x+1))
                     slice_container_layout.addWidget(begin_spinbox)
-                    slice_container_layout.addWidget(QtGui.QLabel(":"))
+
+                    colon = QtGui.QLabel(":")
+                    colon.setMaximumWidth(5)
+                    slice_container_layout.addWidget(colon)
+
                     slice_container_layout.addWidget(end_spinbox)
 
                     # Add spinboxes to self.flattenings to look up later
                     self.flattenings[dim] = (begin_spinbox, end_spinbox)
-                    self.dimension_picker_layout.addRow(dim, slice_container)
+                    self.dimension_picker_layout.addWidget(QtGui.QLabel(dim))
+                    self.dimension_picker_layout.addWidget(slice_container)
+
+                self.dimension_picker_scroll.setFrameShape(QtGui.QFrame.Box)
+                self.layout.addWidget(self.dimension_picker_scroll)
         self.emit_y_picked()
 
     def emit_y_picked(self):
@@ -309,24 +332,15 @@ class XPicker(DatasetVarPicker):
     values = []  # store the values selected
 
     def __init__(self):
-        def hook():
-            self.select_x_type_widget = QtGui.QWidget()
-            self.select_x_type_widget_layout = QtGui.QHBoxLayout()
-            self.select_x_type_widget.setLayout(self.select_x_type_widget_layout)
-            self.toggle_index = QtGui.QRadioButton("index")
-            self.select_x_type_widget_layout.addWidget(self.toggle_index)
-            self.toggle_date = QtGui.QRadioButton("datetime")
-            self.select_x_type_widget_layout.addWidget(self.toggle_date)
-            self.toggle_other = QtGui.QRadioButton("other")
-            self.select_x_type_widget_layout.addWidget(self.toggle_other)
-            self.layout.addWidget(self.select_x_type_widget)
 
-        DatasetVarPicker.__init__(self, "x axis picker", hook)
+        # TODO: get rid of hook parameter in DatasetVarPicker
+        DatasetVarPicker.__init__(self, "x axis")
 
-        # connect the select_type pickers to a slot
-        self.toggle_index.pressed.connect(self.index_pressed)
-        self.toggle_date.pressed.connect(self.date_pressed)
-        self.toggle_other.pressed.connect(self.other_pressed)
+        # for the x axis, allow configurable type
+        self.toggle_type = QtGui.QComboBox()
+        self.toggle_type.addItems(["index", "datetime", "scatter"])
+        self.toggle_type.activated.connect(self.type_changed)
+        self.dataset_var_layout.insertRow(0, "Create type", self.toggle_type)
 
         # create the date selection stuff
         self.date_range_widget = QtGui.QWidget()
@@ -346,14 +360,13 @@ class XPicker(DatasetVarPicker):
         index_range_layout = QtGui.QFormLayout()
         self.index_range_widget.setLayout(index_range_layout)
         self.start_index = QtGui.QSpinBox()
-        index_range_layout.addRow("start", self.start_index)
+        index_range_layout.addRow("start index", self.start_index)
         self.end_index = QtGui.QSpinBox()
-        index_range_layout.addRow("end", self.end_index)
+        index_range_layout.addRow("stop index", self.end_index)
         self.layout.addWidget(self.index_range_widget)
 
         self.layout.addStretch()
         self.variable_widget.currentIndexChanged.connect(self.variable_changed)
-        self.toggle_index.setChecked(True)
         self.index_pressed()
         self.y_picked(None)
 
@@ -365,7 +378,8 @@ class XPicker(DatasetVarPicker):
         """
         if var_len is None:
             # hide things until the y axis has been picked
-            self.setDisabled(True)
+            # self.setDisabled(True)
+            pass
         else:
             self.setDisabled(False)
             self.y_var_len = var_len
@@ -381,11 +395,17 @@ class XPicker(DatasetVarPicker):
         the index slice piece.
         :return: None
         """
-        self.toggle_index.setChecked(True)
         self.axis_type = "index"
-        self.dataset_var_widget.setDisabled(True)
+        # hide both the dataset and var selection, dont need for index
+        self.variable_widget.setEnabled(False)
+        self.dataset_var_layout.labelForField(self.variable_widget).setEnabled(False)
+        self.dataset_widget.setEnabled(False)
+        self.dataset_var_layout.labelForField(self.dataset_widget).setEnabled(False)
+
+        # hide the date range selection stuff
         self.date_range_widget.hide()
-        self.index_range_widget.setDisabled(False)
+
+        # finally, show the index selection stuff
         self.index_range_widget.show()
 
         # If self.axis_type is "index", we'll create a masked array
@@ -408,11 +428,17 @@ class XPicker(DatasetVarPicker):
         the index slicing widget.
         :return: None
         """
-        self.toggle_date.setChecked(True)
         self.axis_type = "date"
-        self.dataset_var_widget.setDisabled(False)
+        # show both the dataset and var selection
+        self.variable_widget.setEnabled(True)
+        self.dataset_var_layout.labelForField(self.variable_widget).setEnabled(True)
+        self.dataset_widget.setEnabled(True)
+        self.dataset_var_layout.labelForField(self.dataset_widget).setEnabled(True)
+
+        # hide the index range stuff
         self.index_range_widget.hide()
-        self.date_range_widget.setDisabled(False)
+
+        # show the date range stuff
         self.date_range_widget.show()
         self.parse_date()
 
@@ -458,17 +484,22 @@ class XPicker(DatasetVarPicker):
         this type of plot at the moment.
         :return: None
         """
-        self.toggle_other.setChecked(True)
         self.axis_type = "other"
-        self.dataset_var_widget.setDisabled(False)
-        self.date_range_widget.setDisabled(True)
-        self.index_range_widget.setDisabled(True)
+        # show both the dataset and var selection
+        self.variable_widget.setEnabled(True)
+        self.dataset_var_layout.labelForField(self.variable_widget).setEnabled(True)
+        self.dataset_widget.setEnabled(True)
+        self.dataset_var_layout.labelForField(self.dataset_widget).setEnabled(True)
+
+        # hide the index range stuff
+        self.index_range_widget.hide()
+
+        # show the date range stuff
+        self.date_range_widget.hide()
 
         dataset = str(self.dataset_widget.currentText())
         variable = str(self.variable_widget.currentText())
         if dataset and variable and dataset == from_console_text:
-            print dataset
-            print variable
             self.values = QtCore.QCoreApplication.instance().dict_of_vars[variable]
         elif dataset and variable:
             self.values = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][:]
@@ -494,15 +525,30 @@ class XPicker(DatasetVarPicker):
             var = var[slices].flatten()
         return var
 
-    def variable_changed(self):
+    def type_changed(self):
+        """ Slot to react to the plot type selected being changed.
+        eg. index, datetime, or scatter.
+        :return: None
+        """
+        type = self.toggle_type.currentText()
+        if type == "index":
+            self.index_pressed()
+        elif type == "datetime":
+            self.date_pressed()
+        else:
+            self.other_pressed()
+
+
+    def variable_changed(self, something=None):
         """ Slot to react to a variable selection being changed.
         :return: None
         """
-        if self.toggle_index.isChecked():
+        type = self.toggle_type.currentText()
+        if type == "index":
             self.index_pressed()
-        elif self.toggle_date.isChecked():
+        elif type == "datetime":
             self.parse_date(redirect_to_other=True)
-        else:  # self.toggle_other.isChecked()
+        else:
             self.other_pressed()
 
     def get_config(self):
@@ -541,8 +587,6 @@ class XPicker(DatasetVarPicker):
             return False
 
 
-            
-
 class MiscControls(QtGui.QWidget):
     color_picked = None
     pick_color = None  # QColorDialog widget
@@ -578,8 +622,6 @@ class MiscControls(QtGui.QWidget):
         self.layout.addWidget(self.add)
         self.preview = QtGui.QPushButton("Preview")
         self.layout.addWidget(self.preview)
-        self.reset = QtGui.QPushButton("Reset")
-        self.layout.addWidget(self.reset)
 
         self.layout.addStretch()
 
@@ -596,6 +638,10 @@ class MiscControls(QtGui.QWidget):
         self.pick_color_button.setStyleSheet("background: %s" % color.name())
 
     def color_select_change_event(self, arg):
+        """
+        :param arg:
+        :return:
+        """
         print QtCore.QEvent.__dict__
         if arg.type() == QtCore.QEvent.ActivationChange:
             if self.pick_color_open_mutex.tryLock():
@@ -603,10 +649,16 @@ class MiscControls(QtGui.QWidget):
             self.pick_color_open_mutex.unlock()
 
     def set_random_color(self):
+        """ Set the color selector to a random color.
+        :return: None
+        """
         self.color_selected(self.make_random_color())
 
     @staticmethod
     def make_random_color():
+        """ Create a QColor object representing a random color.
+        :return: A random color
+        """
         return QtGui.QColor(
             random.randint(0, 25) * 10,
             random.randint(0, 25) * 10,
@@ -614,6 +666,10 @@ class MiscControls(QtGui.QWidget):
         )
 
     def get_config(self):
+        """ Gather the selections from the config widgets of line style, marker, color, and
+        panel-dest into a dict for updating into the main line config.
+        :return: The config dict component for line style, marker, color, and panel-dest.
+        """
         if str(self.pick_line.currentText()) in ['.', 'o', '*', '+', 'x', 's', 'D']:
             line_style = ""
             line_marker = str(self.pick_line.currentText())

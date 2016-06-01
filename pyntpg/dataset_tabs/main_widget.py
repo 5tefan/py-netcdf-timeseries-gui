@@ -13,7 +13,9 @@ from pyntpg.dataset_tabs.dataset_tab import DatasetTab
 class DatasetTabs(QtGui.QTabWidget):
     #  Signal on which to emit a dict of dataset: nc_obj when any dataset updated
     def __init__(self):
-        QtGui.QTabWidget.__init__(self)
+        super(DatasetTabs, self).__init__()
+        self.setTabPosition(QtGui.QTabWidget.North)
+        self.setMaximumHeight(150)
         # Mutex used to protect from tab_changed firing
         # itself again when the "+" is clicked and we add new
         # tab and setCurrentIndex

@@ -52,23 +52,33 @@ class ListConfigured(QtGui.QWidget):
 
         header = QtGui.QWidget()
         self.header_layout = QtGui.QHBoxLayout()
+        self.header_layout.setSpacing(5)
         header.setLayout(self.header_layout)
 
-        title = QtGui.QLabel("Queue to plot")
-        title.setContentsMargins(0, 6, 0, 6)
+        title = QtGui.QLabel("Plot Queue")
+        #title.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Maximum)
         self.header_layout.addWidget(title)
 
-        self.header_layout.addStretch()
+        #self.header_layout.addStretch()
 
+        # create "Remove line" button, only show when len(list) > 0
         self.remove_button = QtGui.QPushButton("Remove line")
         self.remove_button.setVisible(False)
         self.remove_button.clicked.connect(self.remove_line_clicked)
         self.header_layout.addWidget(self.remove_button)
 
+        # create the "Create Plot" button
+        self.plot_button = QtGui.QPushButton("Create Plot")
+        self.plot_button.setStyleSheet("background: #B2F6A8")
+        self.plot_button.setVisible(False)
+        self.header_layout.addWidget(self.plot_button)
+
         # self.layout.addWidget(title)
         self.layout.addWidget(header)
         self.list = QtGui.QListWidget()
+        self.list.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
         self.list.itemClicked.connect(self.line_item_selected)
+        self.list.selectionModel().selectionChanged.connect(self.line_item_selected)
         self.layout.addWidget(self.list)
 
     def add_new_config(self, data):
@@ -79,28 +89,41 @@ class ListConfigured(QtGui.QWidget):
         # TODO: sublcass item override comparison operators so sorting works
         item = QtGui.QListWidgetItem()
         widget = ConfiguredListWidget(self, item, data)
-        widget.remove_action.triggered.connect(lambda: self.remove_line_clicked(self.list.row(item)))
+        widget.remove_action.triggered.connect(lambda: self.list.takeItem(self.list.row(item)))
         item.setSizeHint(widget.sizeHint())
         self.list.addItem(item)
         self.list.setItemWidget(item, widget)
-        self.list.setItemSelected(item, True)
+        if self.list.count() == 1:
+            self.list.setItemSelected(item, True)
         self.list.setSortingEnabled(True)
         self.remove_button.setVisible(True)
+        self.plot_button.setVisible(True)
 
-    def remove_line_clicked(self, item=None):
-        if item is not None:
-            self.list.takeItem(item)
-        else:
-            for item in self.list.selectedItems():
-                self.list.takeItem(self.list.row(item))
+    def remove_line_clicked(self):
+        """ Slot to handle remove line button click. Should remove the selected
+        item from the configuration list.
+        :return: None
+        """
+        for item in self.list.selectedItems():
+            self.list.takeItem(self.list.row(item))
         if len(self.list) == 0:
             self.remove_button.setVisible(False)
+            self.plot_button.setVisible(False)
 
     def line_item_selected(self):
-        if len(self.list.selectedItems()) == 1:
+        """ Slot for signals emitted by selecting or selection change of the items in the list.
+        Should activate the remove item or remove item(s) button. And otherwise hide it if nothing
+         is selected.
+        :return: None
+        """
+        if len(self.list.selectedItems()) > 1:
+            self.remove_button.setVisible(True)
+            self.remove_button.setText("Remove lines")
+        elif len(self.list.selectedItems()) == 1:
+            self.remove_button.setVisible(True)
             self.remove_button.setText("Remove line")
         else:
-            self.remove_button.setText("Remove lines")
+            self.remove_button.setVisible(False)
 
     def get_panel(self, npanel):
         """ Get the configurations attached to panel number npanel
@@ -134,20 +157,16 @@ class ConfiguredListWidget(QtGui.QLabel):
         # Create the context menu shown on right click
         self.menu = QtGui.QMenu()
         self.menu.addAction("Change panel", self.edit_action)
-        self.menu.addAction("Duplicate", self.duplicate_button_pushed)
+        self.menu.addAction("Duplicate", lambda _: self.list.add_new_config(self.get_config()))
         self.remove_action = QtGui.QAction("Remove", self)
         self.menu.addAction(self.remove_action)
 
-        # Listen for changes to the data sources
-        # not using these because now that data is stored in the line,
-        # we don't go back to the datasets or vars to reference it. It's a tradeoff
-        # with handling date in the panel_configurerer and separation of concerns but
-        # now, edit can't change any of the data actaully stored, including indecies or slicing
-        # QtCore.QCoreApplication.instance().dataset_name_changed.connect(self.dataset_namechange)
-        # QtCore.QCoreApplication.instance().dataset_removed.connect(self.dataset_removed)
-        #QtCore.QCoreApplication.instance().console_vars_updated.connect(self.console_vars_updated)
-
     def apply_data(self, config=None):
+        """ Apply the data in the config to the display label in the list.
+        Should display panel number attached to and the string description.
+        :param config: dict configuration object for the line
+        :return: None
+        """
         # Attach the config
         if config is not None:
             self.config = config
@@ -159,35 +178,17 @@ class ConfiguredListWidget(QtGui.QLabel):
         """
         return copy.deepcopy(self.config)
 
-    def duplicate_button_pushed(self):
-        self.list.add_new_config(self.get_config())
-
     def edit_action(self):
         newpanel = QtGui.QInputDialog.getInt(None, "move to panel", "panel number")[0]
         if newpanel:
             self.config["panel-dest"] = newpanel
             self.apply_data()
 
-    # TODO: evaluate complete removal of these
-    """
-    def dataset_namechange(self, from_str, to_str):
-        if self.config and self.config["dataset"] == from_str:
-            self.config["dataset"] = to_str
-            self.apply_data(self.config)
-
-    def dataset_removed(self, str_name):
-        if self.config and self.config["dataset"] == str_name:
-            self.list.takeItem(self.list.row(self.item))
-            self.deleteLater()
-
-    def console_vars_updated(self, var_list):
-        if self.config and self.config["dataset"] == from_console_text:
-            if self.config["var"] not in var_list:
-                self.list.takeItem(self.list.row(self.item))
-                self.deleteLater()
-    """
-
-    def contextMenuEvent(self, QContextMenuEvent):
+    def contextMenuEvent(self, _):
+        """ Slot to react to right click on anything. Show the menu item.
+        :param _: Ignore
+        :return: None
+        """
         self.menu.popup(QtGui.QCursor.pos())
 
 if __name__ == "__main__":
