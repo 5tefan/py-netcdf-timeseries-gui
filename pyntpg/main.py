@@ -6,6 +6,7 @@ except ImportError:
     from PyQt4 import QtCore, QtGui
 from pyntpg.dataset_tabs.main_widget import DatasetTabs
 from pyntpg.plot_tabs.main_widget import PlotTabs
+from pyntpg.plot_tabs.panel_configurer import PanelConfigurer
 from pyntpg.qipython import QIPython
 from pyntpg.plot_tabs.layout_picker import DimesnionChangeDialog
 
@@ -133,6 +134,7 @@ class MainWindow(QtGui.QMainWindow):
         menu_plot = QtGui.QMenu("&Plot", self)
         menu_plot.addAction("Change plot title", self.plot_tabs.tabBar().mouseDoubleClickEvent)
         menu_plot.addAction("Change layout dims", self.change_layout_dims)
+        menu_plot.addAction("Set preview decimation", self.set_preview_decimation)
         self.menuBar().addMenu(menu_plot)
 
         # Help menu
@@ -144,6 +146,14 @@ class MainWindow(QtGui.QMainWindow):
         if result is not None:
             nrow, ncol = result
             self.plot_tabs.currentWidget().widget().layout_picker.make_splitters(nrow, ncol)
+
+    def set_preview_decimation(self):
+        # the call is getInt(QWidget * parent, const QString & title, const QString & label, int value = 0,
+        #  int min = -2147483647, int max = 2147483647, int step = 1, bool * ok = 0, Qt::WindowFlags flags = 0)
+        result = QtGui.QInputDialog.getInt(None, "set preview decimation", "decimate by",
+                                           PanelConfigurer.preview_decimation, 1)[0]
+        if result:
+            PanelConfigurer.preview_decimation = result
 
     def open_ipython(self):
         """ Slot for the menu option to show and/or raise the ipython widget.
