@@ -1,14 +1,17 @@
+import inspect
 import sys
 
 try:
     from qtconsole.qt import QtCore, QtGui
 except ImportError:
     from PyQt4 import QtCore, QtGui
+
 from pyntpg.dataset_tabs.main_widget import DatasetTabs
 from pyntpg.plot_tabs.main_widget import PlotTabs
 from pyntpg.plot_tabs.panel_configurer import PanelConfigurer
-from pyntpg.qipython import QIPython
+from pyntpg.analysis.ipython_console import IPythonConsole
 from pyntpg.plot_tabs.layout_picker import DimesnionChangeDialog
+import pyntpg.analysis as analysis
 
 
 class Application(QtGui.QApplication):
@@ -53,9 +56,20 @@ class Application(QtGui.QApplication):
         self.window = MainWindow()
         self.window.show()
 
-    def update_datasets(self, datasets_dict):
-        self.dict_of_datasets = datasets_dict
-        self.datasets_updated.emit(datasets_dict)
+    def update_datasets(self, datasets_dict=None):
+        """ Accept dicts of the datasets available from the tabs and emit
+        that information on the datasets_updated signal.
+
+        Can be called with no arguments to force the datasets_updated signal
+        to emit the current datasets, might be useful to be called if state
+        falls out of sync.
+
+        :param datasets_dict: dict containing { dataset: netcdf_obj } pairs
+        :return:
+        """
+        if datasets_dict is not None:
+            self.dict_of_datasets = datasets_dict
+        self.datasets_updated.emit(self.dict_of_datasets)
 
     def change_dataset_name(self, from_str, to_str):
         if from_str in self.dict_of_datasets.keys():
@@ -76,7 +90,6 @@ class Application(QtGui.QApplication):
 class MainWindow(QtGui.QMainWindow):
     """ The main window of the QT application. It contains eg. the file menu, etc.
     """
-    ipython_wid = None
     def __init__(self):
         QtGui.QMainWindow.__init__(self)
         self.setWindowTitle("pyntpg")
@@ -100,7 +113,9 @@ class MainWindow(QtGui.QMainWindow):
         self.main_widget_layout.addWidget(self.plot_tabs)
 
         # Create the IPython qwidget
-        self.ipython_wid = QIPython()
+        self.ipython_wid = IPythonConsole()
+
+        self.wizard = None
 
         # The menus have to be after the tabs were set up.
         self.make_menus()
@@ -118,9 +133,12 @@ class MainWindow(QtGui.QMainWindow):
         self.menuBar().addMenu(menu_file)
 
         # Edit menu
-        menu_edit = QtGui.QMenu("&Edit", self)
-        menu_edit.addAction("&Open IPython console", self.open_ipython)
-        self.menuBar().addMenu(menu_edit)
+        menu_analysis = QtGui.QMenu("&Analysis", self)
+        menu_analysis.addAction("&Open IPython console", self.open_ipython)
+        for k, v in inspect.getmembers(analysis, inspect.isclass):
+            menu_analysis.addAction(k, lambda wiz=v: self.show_wizard(wiz))
+
+        self.menuBar().addMenu(menu_analysis)
 
         # Dataset menu # Not sure of a better way to do these but they seem very likely to break if
         # things are moved around at all.
@@ -154,6 +172,10 @@ class MainWindow(QtGui.QMainWindow):
                                            PanelConfigurer.preview_decimation, 1)[0]
         if result:
             PanelConfigurer.preview_decimation = result
+
+    def show_wizard(self, wiz):
+        self.wizard = wiz()
+        self.wizard.show()
 
     def open_ipython(self):
         """ Slot for the menu option to show and/or raise the ipython widget.

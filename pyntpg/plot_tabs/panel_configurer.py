@@ -1,13 +1,17 @@
 import random
+from datetime import datetime
 
 import netCDF4 as nc
-from netCDF4._netCDF4 import _dateparse
-from netCDF4._netCDF4 import Dataset, Variable
 import numpy as np
 from PyQt4 import QtCore, QtGui
-from pyntpg.plot_tabs.plot_widget import PlotWidget, plot_line
+from netCDF4._netCDF4 import Dataset, Variable, _dateparse
 
-from_console_text = "IPython console"
+from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker
+from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker, from_console_text
+from pyntpg.plot_tabs.plot_widget import PlotWidget, plot_lines
+
+# X picker new for testing
+from pyntpg.dataset_var_picker.x_picker import XPicker
 
 
 class PanelConfigurer(QtGui.QWidget):
@@ -31,6 +35,9 @@ class PanelConfigurer(QtGui.QWidget):
         # widget in charge of picking the date and range
         self.x_picker = XPicker()
         self.y_picker.y_picked.connect(self.x_picker.y_picked)
+        # update the datasets to trigger x_picker not disabled,
+        # must be after the self.y_picker.y_picked is connected
+        self.y_picker.update_variables()
         self.layout.addWidget(self.x_picker)
 
         # widget in charge of selecting the display style
@@ -52,7 +59,8 @@ class PanelConfigurer(QtGui.QWidget):
         self.preview = PlotWidget()
         figure = self.preview.get_figure()
         config_dict = self.make_config_dict(decimate=slice(None, None, self.preview_decimation))
-        plot_line(figure.add_subplot(111), [config_dict])
+        if config_dict:
+            plot_lines(figure.add_subplot(111), [config_dict])
         self.preview.show()
 
     def make_config_dict(self, decimate=slice(None, None, None)):
@@ -61,8 +69,12 @@ class PanelConfigurer(QtGui.QWidget):
         :return: Dictionary describing line to plot
         """
         base = self.misc_controls.get_config()
-        base.update(self.x_picker.get_config())
-        base.update(self.y_picker.get_config())
+        try:
+            base.update(self.x_picker.get_config())
+            base.update(self.y_picker.get_config())
+        except TypeError:
+            # None type not iterable, ie nothing selected in one of the pickers
+            return
 
         # enable the grid
         base["grid"] = (True,)  # translates to a call ax.grid(True)
@@ -86,7 +98,7 @@ class PanelConfigurer(QtGui.QWidget):
         if base["type"] == "index":
             base["string"] = "%s::%s vs index" % (base["ydataset"], base["yvariable"])
             base["label"] = base["yvariable"]
-        elif base["type"] == "date":
+        elif base["type"] == "datetime":
             base["string"] = "%s::%s vs time (%s - %s)" % (
                 base["ydataset"], base["yvariable"],
                 base["xdata"][0], base["xdata"][-1]
@@ -102,193 +114,25 @@ class PanelConfigurer(QtGui.QWidget):
         return base
 
 
-class DatasetVarPicker(QtGui.QWidget):
-    """ Base class for picking what goes on the axes.
-    Provides a title, and the dataset and variable selection.
-    This is intended to be inherited because the slots listening for
-    updated datasets and variable are implemented here.
-    Broken out from the two so that that code doesnt get duplicated.
-    """
+class YPicker(FlatDatasetVarPicker):
 
-    def __init__(self, title=None):
-        """ Set up the layout, then add title, from and var widgets.
-        :param title: String title for the panel
-        :param hook: Boolean exit before adding combobox selections
-        :return: None
-        """
-        QtGui.QWidget.__init__(self)
-        self.layout = QtGui.QVBoxLayout()
-        self.layout.setContentsMargins(0, 0, 5, 0)
-        self.setLayout(self.layout)
+    y_picked = QtCore.pyqtSignal(int, dict)
 
-        if title is not None:
-            self.layout.addWidget(QtGui.QLabel(title))
-
-        # container for the dataset and var selection comboboxes
-        self.dataset_var_widget = QtGui.QWidget()
-        self.dataset_var_layout = QtGui.QFormLayout()
-        self.dataset_var_widget.setLayout(self.dataset_var_layout)
-        # -----------
-        self.dataset_widget = QtGui.QComboBox()
-        self.dataset_widget.addItem(from_console_text)
-        self.dataset_widget.currentIndexChanged.connect(self.update_variables)
-        self.dataset_widget.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
-        self.dataset_widget.setMaximumWidth(200)
-        self.dataset_var_layout.addRow("Source", self.dataset_widget)
-        self.variable_widget = QtGui.QComboBox()
-        self.variable_widget.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
-        self.variable_widget.setMaximumWidth(200)
-        self.dataset_var_layout.addRow("Var", self.variable_widget)
-        self.layout.addWidget(self.dataset_var_widget)
-        # -----------
-        try:  # Can't do these if eg. running from main in this file
-            # connect the update handlers
-            QtCore.QCoreApplication.instance().datasets_updated.connect(self.update_datasets)
-            QtCore.QCoreApplication.instance().console_vars_updated.connect(self.update_console_vars)
-            # then for initial data, manually put that through
-            self.update_datasets(QtCore.QCoreApplication.instance().dict_of_datasets)
-            self.update_console_vars(QtCore.QCoreApplication.instance().dict_of_vars)
-        except AttributeError:
-            pass
-
-    def update_datasets(self, dict_of_datasets):
-        """ Intended to be a slot to connect the signal for new/updated datasets.
-        Note that the dict_of_datasets argument doesn't need the nc obj value pair for each
-        key, but the signal emitted contains it so we accept but ignore it.
-        :param dict_of_datasets: dict with keys of name of dataset and value being the nc obj
-        :return: None
-        """
-        selected = self.dataset_widget.currentText()
-        self.dataset_widget.clear()
-        # Put the datasets in
-        self.dataset_widget.addItem(from_console_text)
-        self.dataset_widget.addItems(dict_of_datasets.keys())
-        # If the previously selected on still there, select it
-        self.dataset_widget.setCurrentIndex(self.dataset_widget.findText(selected))
-
-    def update_variables(self):
-        self.variable_widget.clear()
-        current_dataset = self.dataset_widget.currentText()
-        if current_dataset == from_console_text:  # If the IPython console is selected
-            for var in QtCore.QCoreApplication.instance().dict_of_vars.keys():
-                var_value = QtCore.QCoreApplication.instance().dict_of_vars[var]
-                if self.show_var_condition(var_value):
-                    self.variable_widget.addItem(var)
-        else:  # Otherwise must fetch from the netcdf obj
-            try:
-                nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
-                for var in QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables:
-                    if self.show_var_condition(nc_obj.variables[var], nc_obj):
-                        self.variable_widget.addItem(var)
-            except KeyError:
-                pass
-
-    def update_console_vars(self, var_list):
-        current_dataset = self.dataset_widget.currentText()
-        if current_dataset == from_console_text:  # If the IPython console is selected
-            selected = self.variable_widget.currentText()
-            self.variable_widget.clear()
-            self.variable_widget.addItems(var_list.keys())
-            # TODO: if findText -1, flash/animate/highlight that widget is blank, see
-            # https://docs.google.com/viewer?url=https://sites.google.com/site/kennethchristiansen/DUI.html
-            self.variable_widget.setCurrentIndex(max(self.variable_widget.findText(selected), 0))
-
-    def show_var_condition(self, var, nc_obj=None):
-        """ Should the variable be shown in the combobox?
-        :param var: decide if this variable should be shown
-        :return: Boolean, show or don't show in combobox
-        """
-        return True
-
-
-class YPicker(DatasetVarPicker):
-    """ Override the DatasetVarPicker and add some functionality
-    specific to picking dimensions if the selected var has more than 1.
-    """
-    y_picked = QtCore.pyqtSignal(int, dict)  # emit the dimensions of the y_variable picked
-    needs_flatten = False
-    flattenings = {}
-
-    def __init__(self):
-        DatasetVarPicker.__init__(self, "y axis")
+    def __init__(self, title="y axis"):
+        super(YPicker, self).__init__(title=title)
         self.variable_widget.currentIndexChanged.connect(self.check_dims)
 
-        self.dimension_picker_widget = QtGui.QWidget()
-        self.dimension_picker_layout = QtGui.QVBoxLayout()
-        self.dimension_picker_layout.setSpacing(0)
-        self.dimension_picker_widget.setLayout(self.dimension_picker_layout)
-        self.dimension_picker_scroll = QtGui.QScrollArea()
-        self.dimension_picker_scroll.setMaximumWidth(200)
-        self.dimension_picker_scroll.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
-        self.dimension_picker_scroll.setWidget(self.dimension_picker_widget)
-        self.dimension_picker_scroll.setWidgetResizable(True)
-        self.dimension_picker_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.dimension_picker_scroll.setVisible(False)
-        self.layout.addWidget(self.dimension_picker_scroll)
-
-        self.layout.addStretch()
-
     def check_dims(self, var_index):
-        # reset everything to no flattening needed, in case we don't need to do any
-        # and then add back all the flattening stuff if we do end up needing flattening
-
-        # delete anything that was in self.dimension_picker_layout previously
-        for i in reversed(range(self.dimension_picker_layout.count())):
-            self.dimension_picker_layout.itemAt(i).widget().deleteLater()
-        # hide the dimension scroll area in case we dont need flattening
-        self.dimension_picker_scroll.setVisible(False)
-
-        self.needs_flatten = False  # assume flat at start
-        self.flattenings = {}
-        current_dataset = self.dataset_widget.currentText()
-        if current_dataset and current_dataset != from_console_text:  # assume conosle_vars don't need flatten
-            nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
-            var_name = self.variable_widget.itemText(var_index)
-
-            # Try to figure out the dims, may not have dimensions
-            if hasattr(nc_obj.variables[var_name], "dimensions"):
-                dim_len = len(nc_obj.variables[var_name].dimensions)
-            elif hasattr(nc_obj.variables[var_name], "shape"):
-                dim_len = len(nc_obj.variables[var_name].shape)
-            else:
-                dim_len = 1
-            if var_name and dim_len > 1:
-                self.needs_flatten = True
-                for i, dim in enumerate(nc_obj.variables[var_name].dimensions):
-                    # enumerate with i to auto set the last dim to size 1
-
-                    # create the container to hold the slices
-                    slice_container = QtGui.QWidget()
-                    slice_container_layout = QtGui.QHBoxLayout()
-                    slice_container.setLayout(slice_container_layout)
-
-                    # create dim spinboxes and add them to layout
-                    begin_spinbox = QtGui.QSpinBox()
-                    begin_spinbox.setMaximum(nc_obj.dimensions[dim].size-1)
-                    begin_spinbox.valueChanged.connect(self.emit_y_picked)
-                    end_spinbox = QtGui.QSpinBox()
-                    end_spinbox.setMaximum(nc_obj.dimensions[dim].size)
-                    end_spinbox.valueChanged.connect(self.emit_y_picked)
-                    if i == dim_len - 1:  # if it's the last dimension take only 1
-                        end_spinbox.setValue(1)
-                    else:  # otherwise take them all
-                        end_spinbox.setValue(nc_obj.dimensions[dim].size)
-                    begin_spinbox.valueChanged.connect(lambda x, end_spinbox=end_spinbox: end_spinbox.setMinimum(x+1))
-                    slice_container_layout.addWidget(begin_spinbox)
-
-                    colon = QtGui.QLabel(":")
-                    colon.setMaximumWidth(5)
-                    slice_container_layout.addWidget(colon)
-
-                    slice_container_layout.addWidget(end_spinbox)
-
-                    # Add spinboxes to self.flattenings to look up later
-                    self.flattenings[dim] = (begin_spinbox, end_spinbox)
-                    self.dimension_picker_layout.addWidget(QtGui.QLabel(dim))
-                    self.dimension_picker_layout.addWidget(slice_container)
-
-                self.dimension_picker_scroll.setVisible(True)
+        super(YPicker, self).check_dims(var_index)
         self.emit_y_picked()
+
+    def pick_flatten_dims_netcdf(self, nc_obj, variable):
+        [s.valueChanged.connect(self.emit_y_picked) for s in
+         super(YPicker, self).pick_flatten_dims_netcdf(nc_obj, variable)]
+
+    def pick_flatten_dims_listlike(self, listlike):
+        [s.valueChanged.connect(self.emit_y_picked) for s in
+         super(YPicker, self).pick_flatten_dims_listlike(listlike)]
 
     def emit_y_picked(self):
         """ Calculate the size of the variable selected, taking
@@ -296,417 +140,37 @@ class YPicker(DatasetVarPicker):
         self.y_picked signal.
         :return: None
         """
-        current_dataset = self.dataset_widget.currentText()
-        var_name = self.variable_widget.currentText()
-        dim_slices = {}
-        if not current_dataset or not var_name:
-            return  # abort if there is nothing selected
-        elif current_dataset == from_console_text:
-            length = len(QtCore.QCoreApplication.instance().dict_of_vars[var_name])
-        elif self.needs_flatten:  # nc_obj var needs flattening
-            var = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var_name][:]
-            var, dim_slices = self.make_flat(var)
-            length = len(var)
-        else:  # else, is nc_obj var that doesn't need flattening
-            length = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables[var_name].size
-        self.y_picked.emit(length, dim_slices)
-
-    def make_flat(self, var):
-        """ Flatten the values in var if they need flattening, ie, if
-        they are multidimensional.
-        :param var: List values to flatten
-        :return: list: flattened values from var
-        """
-        dim_slices = {}
-        if self.needs_flatten:  # apply the flattening
-            current_dataset = self.dataset_widget.currentText()
-            if current_dataset and current_dataset != from_console_text:  # assume conosle_vars don't need flatten
-                nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
-                var_name = self.variable_widget.currentText()
-                slices = []
-                for dim in nc_obj.variables[var_name].dimensions:
-                    if dim in self.flattenings.keys():
-                        dim_slices[dim] = slice(*(f.value() for f in self.flattenings[dim]))
-                    else:
-                        dim_slices[dim] = slice(None)
-                    slices.append(dim_slices[dim])
-                var = var[slices].flatten()
-        return var, dim_slices
-
-    def get_config(self):
-        """ Calling self.get_config will collect all the options
-        configured through the UI into a dict for plotting.
-        :return: dict configuration object specifying x-axis
-        """
-        dataset = str(self.dataset_widget.currentText())
-        variable = str(self.variable_widget.currentText())
-
-        if dataset == from_console_text:
-            values = QtCore.QCoreApplication.instance().dict_of_vars[variable]
-        else:
-            values = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][:]
-        if self.needs_flatten:  # nc_obj var needs flattening
-            values = self.make_flat(values)[0]
-        return {"ydataset": dataset,
-                "yvariable": variable,
-                "ydata": values,
-                }
-
-
-class XPicker(DatasetVarPicker):
-    """ Override the DatasetVarPicker and add some functionality
-    specific to picking a date range.
-    """
-    axis_type = None  # track the type of axis selected, "index", "datetime", or "scatter"
-    y_var_len = None  # track y length so we can ensure shape matches
-    y_dim_slices = {}
-    values = []  # store the values selected
-
-    def __init__(self):
-
-        # TODO: get rid of hook parameter in DatasetVarPicker
-        DatasetVarPicker.__init__(self, "x axis")
-
-        # for the x axis, allow configurable type
-        self.toggle_type = QtGui.QComboBox()
-        self.toggle_type.addItems(["index", "datetime", "scatter"])
-        self.toggle_type.activated.connect(self.type_changed)
-        self.dataset_var_layout.insertRow(0, "Create type", self.toggle_type)
-
-        # create the date selection stuff
-        self.date_range_widget = QtGui.QWidget()
-        date_range_layout = QtGui.QFormLayout()
-        self.date_range_widget.setLayout(date_range_layout)
-        self.start_time = QtGui.QDateTimeEdit()
-        self.start_time.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
-        date_range_layout.addRow("start", self.start_time)
-        self.end_time = QtGui.QDateTimeEdit()
-        self.end_time.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
-        date_range_layout.addRow("end", self.end_time)
-        self.date_range_widget.hide()
-        self.layout.addWidget(self.date_range_widget)
-
-        # create the index slicing stuff
-        self.index_range_widget = QtGui.QWidget()
-        index_range_layout = QtGui.QFormLayout()
-        self.index_range_widget.setLayout(index_range_layout)
-        self.start_index = QtGui.QSpinBox()
-        index_range_layout.addRow("start index", self.start_index)
-        self.end_index = QtGui.QSpinBox()
-        index_range_layout.addRow("stop index", self.end_index)
-        self.layout.addWidget(self.index_range_widget)
-
-        self.dimension_picker_widget = QtGui.QWidget()
-        self.dimension_picker_layout = QtGui.QVBoxLayout()
-        self.dimension_picker_layout.setSpacing(0)
-        self.dimension_picker_widget.setLayout(self.dimension_picker_layout)
-        self.dimension_picker_scroll = QtGui.QScrollArea()
-        self.dimension_picker_scroll.setMaximumWidth(200)
-        self.dimension_picker_scroll.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
-        self.dimension_picker_scroll.setWidget(self.dimension_picker_widget)
-        self.dimension_picker_scroll.setWidgetResizable(True)
-        self.dimension_picker_scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.dimension_picker_scroll.setVisible(False)
-        self.layout.addWidget(self.dimension_picker_scroll)
-
-        self.alternate_y_dim_slice = {}
-
-        self.layout.addStretch()
-        self.variable_widget.currentIndexChanged.connect(self.variable_changed)
-        self.index_pressed()
-        self.y_picked(None)
-
-    def y_picked(self, var_len=None, dim_slices=None):
-        """ Slot to receive length of y variable picked so we only show
-        time dimensions that fit the data.
-        :param var_len: int length of y variable
-        :return: None
-        """
-        if var_len is None:
-            # hide things until the y axis has been picked
-            self.setDisabled(True)
-        else:
-            self.setDisabled(False)
-            self.y_var_len = var_len
-            self.y_dim_slices = dim_slices
-            self.start_index.setMaximum(self.y_var_len)
-            self.end_index.setMaximum(self.y_var_len)
-            self.end_index.setValue(self.y_var_len)
-        self.variable_changed()
-
-    def index_pressed(self):
-        """ Slot to react to the index radio button being pressed.
-        Hide and disable the date slice piece. Show and enable
-        the index slice piece.
-        :return: None
-        """
-        self.axis_type = "index"
-        # hide both the dataset and var selection, dont need for index
-        self.variable_widget.setEnabled(False)
-        self.dataset_var_layout.labelForField(self.variable_widget).setEnabled(False)
-        self.dataset_widget.setEnabled(False)
-        self.dataset_var_layout.labelForField(self.dataset_widget).setEnabled(False)
-
-        # hide the date range selection stuff
-        self.date_range_widget.hide()
-
-        # finally, show the index selection stuff
-        self.index_range_widget.show()
-
-        # If self.axis_type is "index", we'll create a masked array
-        # masking everything but the part requested. May use
-        # np.ma.compressed(values) later to get only unmasked values
-        self.set_values()
-
-    def index_changed(self):
-        """ Slot to react to changing the index slice range selection.
-        :return: None
-        """
-        index_begin = self.start_index.value()
-        index_end = self.end_index.value()
-        self.values.mask = ((self.values <= index_begin) | (self.values >= index_end))
-
-    def date_pressed(self):
-        """ Slot to react to the date radio button being pressed.
-        Enable and show the date range selection. Hide and disable
-        the index slicing widget.
-        :return: None
-        """
-        self.axis_type = "datetime"
-        # show both the dataset and var selection
-        self.variable_widget.setEnabled(True)
-        self.dataset_var_layout.labelForField(self.variable_widget).setEnabled(True)
-        self.dataset_widget.setEnabled(True)
-        self.dataset_var_layout.labelForField(self.dataset_widget).setEnabled(True)
-
-        # hide the index range stuff
-        self.index_range_widget.hide()
-
-        # show the date range stuff
-        self.date_range_widget.show()
-        self.parse_date()
-
-    def parse_date(self, redirect_to_scatter=False):
-        # Otherwise if date, we expect it to already be a date object coming from
-        # the console, otherwise we need to run nc.num2date on it
-        self.set_values()
-        self.start_time.setMaximumDateTime(self.values[-1])
-        self.start_time.setMinimumDateTime(self.values[0])
-        self.start_time.setDateTime(self.values[0])
-        self.end_time.setMaximumDateTime(self.values[-1])
-        self.end_time.setMinimumDateTime(self.values[0])
-        self.end_time.setDateTime(self.values[-1])
-
-    def date_changed(self):
-        """ Slot to react to changes to the date range selected.
-        Updates the mask, leaving dates in the range between begin
-        and end unmasked.
-        :return: None
-        """
-        date_begin = self.start_time.dateTime().toPydateTime()
-        date_end = self.end_time.dateTime().toPyDateTime()
-        self.values.mask = ((self.values < date_begin) | (self.values > date_end))
-
-    def scatter_pressed(self):
-        """ Slot to react to the scatter combobox option being selected.
-        Selecting other indicates that a scatter plot is going to
-        be made. Date and index based slicing not available for
-        this type of plot at the moment.
-        :return: None
-        """
-        self.toggle_type.setCurrentIndex(self.toggle_type.findText("scatter"))
-        self.axis_type = "scatter"
-        # show both the dataset and var selection
-        self.variable_widget.setEnabled(True)
-        self.dataset_var_layout.labelForField(self.variable_widget).setEnabled(True)
-        self.dataset_widget.setEnabled(True)
-        self.dataset_var_layout.labelForField(self.dataset_widget).setEnabled(True)
-
-        # hide the index range stuff
-        self.index_range_widget.hide()
-
-        # show the date range stuff
-        self.date_range_widget.hide()
-
-        # if there are any length one dimensions, add them as qcombobox widgets
-        self.make_scatter_dims()
-
-        self.set_values()
-
-    def make_scatter_dims(self):
-        self.reset_scatter_dims()
-        current_dataset = self.dataset_widget.currentText()
-        if current_dataset and current_dataset != from_console_text:
-            self.alternate_y_dim_slice = {}
-            nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
-            var_name = self.variable_widget.currentText()
-            if var_name:
-                for dim in nc_obj.variables[var_name].dimensions:
-                    if (dim in self.y_dim_slices.keys() and
-                    (self.y_dim_slices[dim].stop - self.y_dim_slices[dim].start) == 1):
-                        wid = QtGui.QWidget()
-                        hlayout = QtGui.QHBoxLayout()
-                        wid.setLayout(hlayout)
-                        hlayout.addWidget(QtGui.QLabel(dim))
-                        combobox = QtGui.QComboBox()
-                        combobox.addItems([str(x) for x in range(nc_obj.dimensions[dim].size)])
-                        combobox.currentIndexChanged.connect(self.set_values)
-                        hlayout.addWidget(combobox)
-
-                        self.alternate_y_dim_slice.update({dim: combobox})
-
-                        self.dimension_picker_layout.addWidget(wid)
-
-                        self.dimension_picker_scroll.setVisible(True)
-
-    def reset_scatter_dims(self):
-        """ Clear the dimension picker for the x axis. This should be called anytime
-        a type other than scatter is selected.
-        :return: None
-        """
-        for i in reversed(range(self.dimension_picker_layout.count())):
-            self.dimension_picker_layout.itemAt(i).widget().deleteLater()
-        self.dimension_picker_scroll.setVisible(False)
-
-    def set_values(self):
-
-        self.values = []
-
-        if self.axis_type == "index":
-            if self.y_var_len:
-                self.values = np.ma.arange(self.y_var_len)
-            return
-
-        dataset = str(self.dataset_widget.currentText())
-        variable = str(self.variable_widget.currentText())
-
-        if not dataset or not variable:
-            return
-        elif dataset and variable and dataset == from_console_text:
-            self.values = QtCore.QCoreApplication.instance().dict_of_vars[variable]
-        elif dataset and variable:
-
-            values = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][:]
-            if self.axis_type == "datetime":
-                units = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable].units
-                try:
-                    values = np.ma.masked_array(nc.num2date(values, units))
-                except (ValueError, IndexError) as _:
-                    return
-
-            self.values = self.flatten_if_needed(values)
-
-
-    def flatten_if_needed(self, var):
-        """
-        :param var: The values to flatten
-        :type var: np.ndarray
-        """
-        current_dataset = self.dataset_widget.currentText()
-        if current_dataset and current_dataset != from_console_text:  # assume conosle_vars don't need flatten
-            nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
-            var_name = self.variable_widget.currentText()
-            if var_name:
-                slices = []
-                for dim in nc_obj.variables[var_name].dimensions:
-                    if dim in self.alternate_y_dim_slice.keys():
-                        combo = self.alternate_y_dim_slice[dim]
-                        value = int(combo.currentText())
-                        print "using alternate %s" % value
-                        slices.append(slice(value, value+1))
-                    elif dim in self.y_dim_slices.keys():
-                        slices.append(self.y_dim_slices[dim])
-                    else:
-                        slices.append(slice(None))
-                var = var[slices].flatten()
-        return var
-
-    def type_changed(self):
-        """ Slot to react to the plot type selected being changed.
-        eg. index, datetime, or scatter.
-        :return: None
-        """
-        type = self.toggle_type.currentText()
-        self.reset_scatter_dims()
-        if type == "index":
-            self.index_pressed()
-        elif type == "datetime":
-            self.date_pressed()
-        else:
-            self.scatter_pressed()
-        self.update_variables()
-
-
-    def variable_changed(self, something=None):
-        """ Slot to react to a variable selection being changed.
-        :return: None
-        """
-        type = self.toggle_type.currentText()
-        self.reset_scatter_dims()
-        if type == "index":
-            self.index_pressed()
-        elif type == "datetime":
-            self.parse_date(redirect_to_scatter=True)
-        else:
-            self.scatter_pressed()
-
-    def get_config(self):
-        """ Calling self.get_config will collect all the options
-        configured through the UI into a dict for plotting.
-        :return: dict configuration object specifying x-axis
-        """
-        dataset = str(self.dataset_widget.currentText())
-        variable = str(self.variable_widget.currentText())
-        return {"type": self.axis_type,
-                "xdataset": dataset,
-                "xvariable": variable,
-                "xdata": self.values,
-                }
+        print "YPicker emit_y_picked %s" % self.get_var_len()
+        self.y_picked.emit(self.get_var_len(), self.get_dim_slices())
 
     def show_var_condition(self, var, nc_obj=None):
+        if hasattr(var, "units"):
+            try:
+                _dateparse(var.units)
+                return False
+            except:
+                pass
+        return super(YPicker, self).show_var_condition(var=var, nc_obj=nc_obj)
+
+    def get_config(self):
+        """ Calling self.get_config will collect all the options
+        configured through the UI into a dict for plotting.
+        :return: dict configuration object specifying x-axis
         """
-        :param nc_obj: Optional netcdf object from which var comes from.
-        :type var: np.ndarray | nc._netCDF4.Variable
-        :return: If var is valid in the current mode.
-        """
-        type = self.toggle_type.currentText()
-        if isinstance(var, np.ndarray):
-            return len(var) == self.y_var_len
+        dataset = str(self.dataset_widget.currentText())
+        variable = str(self.variable_widget.currentText())
+        if variable and dataset:
+            result = {
+                "ydataset": dataset,
+                "yvariable": variable
+            }
+            if dataset != from_console_text:
+                nc_var = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable]
+                if hasattr(nc_var, "units"):
+                    result.update({"yunits": nc_var.units})
 
-        else:
-            assert isinstance(var, Variable)
-            assert isinstance(nc_obj, Dataset)
-            # keep a previous check so we can feed datetime check through dims check also
-            previous = True
-
-            # if it's a datetime, try to parse by the num2date internal
-            # _dateparse function, if doesn't work, return False
-            if type == "datetime":
-                previous = False
-                if hasattr(var, "units"):
-                    try:
-                        _dateparse(var.units)
-                        previous = True
-                    except (ValueError, IndexError) as _:
-                        pass
-
-            # Otherwise, just check to make sure that dimensions are ok
-            assert(hasattr(var, "dimensions"))
-            sizes = []
-            for dim in var.dimensions:
-                if dim in self.y_dim_slices.keys():
-                    try:
-                        dim_slice = self.y_dim_slices[dim]
-                        assert(isinstance(dim_slice, slice))
-                        sizes.append(dim_slice.stop - dim_slice.start)
-                    except TypeError:
-                        sizes.append(nc_obj.dimensions[dim].size)
-                else:
-                    sizes.append(nc_obj.dimensions[dim].size)
-
-            return np.prod(sizes) == self.y_var_len and previous
-
-
+            result["ydata"] = self.get_values()
+            return result
 
 
 class MiscControls(QtGui.QWidget):
@@ -779,6 +243,9 @@ class MiscControls(QtGui.QWidget):
     @staticmethod
     def make_random_color():
         """ Create a QColor object representing a random color.
+        Each rgb must be b/w 0, 255. Randint * 10 ensures
+        possible colors likely be visibly distinct.
+
         :return: A random color
         """
         return QtGui.QColor(

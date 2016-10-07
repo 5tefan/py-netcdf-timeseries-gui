@@ -58,6 +58,11 @@ class DatasetTabs(QtGui.QTabWidget):
         self.update_datasets()
 
     def update_datasets(self):
+        """ Go through all the tabs and create a dict containing
+        {dataset_name: netcdf object} pairs, then emit to the
+        application instance.
+        :return: None
+        """
         result = {}
         for index in range(self.count() - 1):
             nc_obj = self.widget(index).nc_obj

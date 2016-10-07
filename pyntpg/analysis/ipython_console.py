@@ -7,7 +7,7 @@ from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from traitlets.config.configurable import MultipleInstanceError
 
 
-class QIPython(RichJupyterWidget):
+class IPythonConsole(RichJupyterWidget):
     def __init__(self):
         """ This took a ridiculous amount of time to figure out.
         Basically, when developing in PyCharm, your script is run
@@ -43,11 +43,14 @@ class QIPython(RichJupyterWidget):
         # On varname change, change vars in console
         QtCore.QCoreApplication.instance().dataset_name_changed.connect(self.rename_var)
 
-    def add_vars(self, dict_of_vars):
+    def add_vars(self, dict_of_vars, hidden=True):
         self.kernel.shell.push(dict_of_vars)
         # Also update user_ns_hidden with dict of vars so that dict of vars doesn't
-        # show up as user defined variable
-        self.kernel.shell.user_ns_hidden.update(dict_of_vars)
+        # show up as user defined variable if hidden is set
+        if hidden:
+            self.kernel.shell.user_ns_hidden.update(dict_of_vars)
+        else:
+            self.emit_user_vars()
 
     def emit_user_vars(self):
         """
@@ -75,16 +78,14 @@ class QIPython(RichJupyterWidget):
         except TypeError:
             return False
 
-        def is_float_or_date(x):
-            try:
-                float(x)
-                return True
-            except ValueError:
-                return False
-            except TypeError:
-                return isinstance(x, (datetime.date, datetime.time, datetime.datetime)) or self.is_plotable(x)
+        try:
+            float(var_obj[0])
+            return True
+        except ValueError:
+            return False
+        except TypeError:
+            return isinstance(var_obj[0], (datetime.date, datetime.time, datetime.datetime))
 
-        return all(is_float_or_date(i) for i in var_obj)
 
     def rename_var(self, from_str, to_str):
         """
@@ -109,6 +110,6 @@ if __name__ == "__main__":
     from PyQt4 import QtGui
 
     app = QtGui.QApplication(sys.argv)
-    main = QIPython()
+    main = IPythonConsole()
     main.show()
     exit(app.exec_())

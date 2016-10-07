@@ -180,7 +180,7 @@ class ConfiguredListWidget(QtGui.QLabel):
 
     def edit_action(self):
         newpanel = QtGui.QInputDialog.getInt(None, "move to panel", "panel number")[0]
-        if newpanel:
+        if newpanel is not None:
             self.config["panel-dest"] = newpanel
             self.apply_data()
 

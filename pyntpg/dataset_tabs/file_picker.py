@@ -38,7 +38,7 @@ class FilePicker(QtGui.QWidget):
         # self.filelist.setMaximumHeight(300)
         # self.filelist.setMinimumHeight(300)
         self.filelist.setGridSize(QtCore.QSize(100, 20))
-        self.filelist.setTextElideMode(QtCore.Qt.ElideLeft)
+        self.filelist.setTextElideMode(QtCore.Qt.ElideMiddle)
         self.filelist.setSelectionMode(QtGui.QAbstractItemView.MultiSelection)
         self.filelist.itemClicked.connect(self.file_item_clicked)
         self.filelist.itemSelectionChanged.connect(self.file_item_clicked)

@@ -10,7 +10,7 @@ from pyntpg.plot_tabs.layout_picker import LayoutPicker
 from pyntpg.plot_tabs.list_configured import ListConfigured
 from pyntpg.plot_tabs.panel_configurer import PanelConfigurer
 
-from pyntpg.plot_tabs.plot_widget import plot_line
+from pyntpg.plot_tabs.plot_widget import plot_lines
 
 
 class PlotTab(QtGui.QWidget):
@@ -79,7 +79,7 @@ class PlotTab(QtGui.QWidget):
                 assert isinstance(ax, Axes)
                 lines = self.list_configured.get_panel(npanel)
                 if lines:
-                    plot_line(ax, lines)
+                    plot_lines(ax, lines)
                     self.figure.add_subplot(ax)
                 npanel += 1
         self.figure.autofmt_xdate()
