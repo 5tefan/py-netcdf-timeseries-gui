@@ -1,7 +1,7 @@
 # Python NetCDF Time Series Plot GUI
 
-The Python NetCDF Time Series Plot GUI (pyntpg) is a tool to visualize time
-series data in NetCDF format. 
+The Python NetCDF Time Series GUI (pyntpg) is a tool to visualize and 
+do analysis with series data in NetCDF format. 
 
 ## Overview 
 
@@ -11,18 +11,14 @@ series and scatter plots without writing any code. The integrated Ipython
 console allows the user to perform any kind of data processing possible
 in Python and display the results. 
 
-The software package stands on the shoulders of giants, making use of:
+The software package brings together many powerful third party components, making use of:
 
 * PyQt4 Python bindings to the Qt UI library
 * netcdf4-python interface to the netCDF C library
 * matplotlib python visualization and plotting library
 * Jupyter IPython console and kernel, qtconsole
  
-The scope of the program is inspired by the Unix philosophy: do one thing
-and do it well. While we could work toward an interface reading data from
-csv, tsv, etc and plotting line, bar charts, pie charts, etc, we prefer to
-instead optimize for the specific use case of time series netcdf data.
-Continuing development on the interface is focusing on improving the 
+One goal of continued ddevelopment on the interface is focusing on improving the 
 modularity such that adapting to new features may only require rewriting
 limited pieces of the interface. The panel_configurer for new plot styles
 or the dataset_tabs for reading new data types. 
@@ -74,3 +70,14 @@ A tutorial workflow is described below
     as options to change the title and labels.
     
  
+
+# TODO
+
+* Opening frequency analysis wizards takes a while, especially for lots of data.
+Ie, complexity of opening a wizard is at least O(n) in size of data, which should not
+be the case! from some initial profiling,
+`python -m cProfile -s cumtime pyntpg/main.py > profile.log`, and code inspection,
+this appears to be due to the calls from signal\_picker, specifically the get\_values 
+call is expensive. 
+* ability to transport/compose wizard plots to plot tab queue
+* catch errors coming out of the analysis wizard and appropriately intercept in preview\_result
