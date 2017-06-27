@@ -1,6 +1,8 @@
 import copy
 
-from PyQt4 import QtGui
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QListWidget, QAbstractItemView
+from PyQt5.QtWidgets import QAction, QListWidgetItem, QMenu, QInputDialog
+from PyQt5.Qt import QCursor
 
 """ Change to now store the data to be plotting inside
 each ConfiguredListWidget instead of just metaish data
@@ -37,7 +39,7 @@ Dataset::var vs Dataset::var for other
 
 """
 
-class ListConfigured(QtGui.QWidget):
+class ListConfigured(QWidget):
     """ A list widget for displaying a preview of what is
     configured to be plotted on each panel.
     """
@@ -45,38 +47,38 @@ class ListConfigured(QtGui.QWidget):
         """ Initialize by creating the layout, adding label and list widget.
         :return: None
         """
-        QtGui.QWidget.__init__(self)
-        self.layout = QtGui.QVBoxLayout()
+        QWidget.__init__(self)
+        self.layout = QVBoxLayout()
         self.layout.setSpacing(0)
         self.setLayout(self.layout)
 
-        header = QtGui.QWidget()
-        self.header_layout = QtGui.QHBoxLayout()
+        header = QWidget()
+        self.header_layout = QHBoxLayout()
         self.header_layout.setSpacing(5)
         header.setLayout(self.header_layout)
 
-        title = QtGui.QLabel("Plot Queue")
-        #title.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Maximum)
+        title = QLabel("Plot Queue")
+        #title.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Maximum)
         self.header_layout.addWidget(title)
 
         #self.header_layout.addStretch()
 
         # create "Remove line" button, only show when len(list) > 0
-        self.remove_button = QtGui.QPushButton("Remove line")
+        self.remove_button = QPushButton("Remove line")
         self.remove_button.setVisible(False)
         self.remove_button.clicked.connect(self.remove_line_clicked)
         self.header_layout.addWidget(self.remove_button)
 
         # create the "Create Plot" button
-        self.plot_button = QtGui.QPushButton("Create Plot")
+        self.plot_button = QPushButton("Create Plot")
         self.plot_button.setStyleSheet("background: #B2F6A8")
         self.plot_button.setVisible(False)
         self.header_layout.addWidget(self.plot_button)
 
         # self.layout.addWidget(title)
         self.layout.addWidget(header)
-        self.list = QtGui.QListWidget()
-        self.list.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+        self.list = QListWidget()
+        self.list.setSelectionMode(QAbstractItemView.SingleSelection)
         self.list.itemClicked.connect(self.line_item_selected)
         self.list.selectionModel().selectionChanged.connect(self.line_item_selected)
         self.layout.addWidget(self.list)
@@ -87,14 +89,14 @@ class ListConfigured(QtGui.QWidget):
         :return: None
         """
         # TODO: sublcass item override comparison operators so sorting works
-        item = QtGui.QListWidgetItem()
+        item = QListWidgetItem()
         widget = ConfiguredListWidget(self, item, data)
         widget.remove_action.triggered.connect(lambda: self.list.takeItem(self.list.row(item)))
         item.setSizeHint(widget.sizeHint())
         self.list.addItem(item)
         self.list.setItemWidget(item, widget)
         if self.list.count() == 1:
-            self.list.setItemSelected(item, True)
+            self.list.setCurrentItem(item)
         self.list.setSortingEnabled(True)
         self.remove_button.setVisible(True)
         self.plot_button.setVisible(True)
@@ -135,7 +137,7 @@ class ListConfigured(QtGui.QWidget):
         return [line.get_config() for line in widgets if line.get_config()["panel-dest"] == npanel]
 
 
-class ConfiguredListWidget(QtGui.QLabel):
+class ConfiguredListWidget(QLabel):
     """ The actual widget that shows up as each list item
     in the ListConfigured widget above.
     """
@@ -155,10 +157,10 @@ class ConfiguredListWidget(QtGui.QLabel):
         self.apply_data(config)
 
         # Create the context menu shown on right click
-        self.menu = QtGui.QMenu()
+        self.menu = QMenu()
         self.menu.addAction("Change panel", self.edit_action)
         self.menu.addAction("Duplicate", lambda _: self.list.add_new_config(self.get_config()))
-        self.remove_action = QtGui.QAction("Remove", self)
+        self.remove_action = QAction("Remove", self)
         self.menu.addAction(self.remove_action)
 
     def apply_data(self, config=None):
@@ -179,7 +181,7 @@ class ConfiguredListWidget(QtGui.QLabel):
         return copy.deepcopy(self.config)
 
     def edit_action(self):
-        newpanel = QtGui.QInputDialog.getInt(None, "move to panel", "panel number")[0]
+        newpanel = QInputDialog.getInt(None, "move to panel", "panel number")[0]
         if newpanel is not None:
             self.config["panel-dest"] = newpanel
             self.apply_data()
@@ -189,11 +191,13 @@ class ConfiguredListWidget(QtGui.QLabel):
         :param _: Ignore
         :return: None
         """
-        self.menu.popup(QtGui.QCursor.pos())
+        self.menu.popup(QCursor.pos())
 
 if __name__ == "__main__":
     import sys
-    app = QtGui.QApplication(sys.argv)
+    from PyQt5.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
     main = ListConfigured()
     main.show()
     exit(app.exec_())

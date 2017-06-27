@@ -1,9 +1,13 @@
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QSizePolicy, QVBoxLayout, QFormLayout
+from PyQt5.QtWidgets import QPushButton, QComboBox, QSpinBox, QColorDialog
+from PyQt5.QtCore import pyqtSignal, QCoreApplication, QMutex, QEvent
+from PyQt5.Qt import QColor
+
 import random
 from datetime import datetime
 
 import netCDF4 as nc
 import numpy as np
-from PyQt4 import QtCore, QtGui
 from netCDF4._netCDF4 import Dataset, Variable, _dateparse
 
 from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker
@@ -14,19 +18,19 @@ from pyntpg.plot_tabs.plot_widget import PlotWidget, plot_lines
 from pyntpg.dataset_var_picker.x_picker import XPicker
 
 
-class PanelConfigurer(QtGui.QWidget):
+class PanelConfigurer(QWidget):
     """ Main widget to gather all the pieces below into a cohesive interface for
     picking something to plot.
     """
-    signal_new_config = QtCore.pyqtSignal(dict)  # Signal to the ListConfigured
+    signal_new_config = pyqtSignal(dict)  # Signal to the ListConfigured
     preview_decimation = 3  # factor for decimation on the preview
 
     def __init__(self):
-        QtGui.QWidget.__init__(self)
-        self.layout = QtGui.QHBoxLayout()
+        QWidget.__init__(self)
+        self.layout = QHBoxLayout()
         self.setLayout(self.layout)
         self.setMinimumHeight(200)
-        self.setSizePolicy(QtGui.QSizePolicy.Preferred, QtGui.QSizePolicy.Preferred)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
 
         # widget in charge of picking variable to plot as time series
         self.y_picker = YPicker()
@@ -116,7 +120,7 @@ class PanelConfigurer(QtGui.QWidget):
 
 class YPicker(FlatDatasetVarPicker):
 
-    y_picked = QtCore.pyqtSignal(int, dict)
+    y_picked = pyqtSignal(int, dict)
 
     def __init__(self, title="y axis"):
         super(YPicker, self).__init__(title=title)
@@ -165,38 +169,37 @@ class YPicker(FlatDatasetVarPicker):
                 "yvariable": variable
             }
             if dataset != from_console_text:
-                nc_var = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable]
+                nc_var = QCoreApplication.instance().dict_of_datasets[dataset].variables[variable]
                 if hasattr(nc_var, "units"):
                     result.update({"yunits": nc_var.units})
 
             result["ydata"] = self.get_values()
             return result
 
-
-class MiscControls(QtGui.QWidget):
+class MiscControls(QWidget):
     color_picked = None
     pick_color = None  # QColorDialog widget
 
     def __init__(self):
-        QtGui.QWidget.__init__(self)
-        self.layout = QtGui.QVBoxLayout()
+        QWidget.__init__(self)
+        self.layout = QVBoxLayout()
         self.layout.setContentsMargins(5, 0, 5, 0)
         self.setLayout(self.layout)
 
         # create form for picking visual styles
-        style_picker = QtGui.QWidget()
-        style_picker_layout = QtGui.QFormLayout()
+        style_picker = QWidget()
+        style_picker_layout = QFormLayout()
         style_picker.setLayout(style_picker_layout)
-        self.pick_color_open_mutex = QtCore.QMutex()
-        self.pick_color_button = QtGui.QPushButton()
+        self.pick_color_open_mutex = QMutex()
+        self.pick_color_button = QPushButton()
         self.pick_color_button.clicked.connect(self.open_color_picker)
         style_picker_layout.addRow("Stroke Color", self.pick_color_button)
         # --------------------
-        self.pick_line = QtGui.QComboBox()
+        self.pick_line = QComboBox()
         self.pick_line.addItems(['-', '--', '-.', ':', '.', 'o', '*', '+', 'x', 's', 'D'])
         style_picker_layout.addRow("Stroke Style", self.pick_line)
         # --------------------
-        self.pick_panel = QtGui.QSpinBox()
+        self.pick_panel = QSpinBox()
         self.pick_panel.setMinimum(0)
         style_picker_layout.addRow("Panel destination", self.pick_panel)
         # --------------------
@@ -204,15 +207,15 @@ class MiscControls(QtGui.QWidget):
         self.layout.addWidget(style_picker)
 
         # Add the control buttons
-        self.add = QtGui.QPushButton("Add to Queue")
+        self.add = QPushButton("Add to Queue")
         self.layout.addWidget(self.add)
-        self.preview = QtGui.QPushButton("Preview")
+        self.preview = QPushButton("Preview")
         self.layout.addWidget(self.preview)
 
         self.layout.addStretch()
 
     def open_color_picker(self):
-        self.pick_color = QtGui.QColorDialog()
+        self.pick_color = QColorDialog()
         self.pick_color.currentColorChanged.connect(self.color_selected)
         self.pick_color.colorSelected.connect(self.color_selected)
         self.pick_color.changeEvent = self.color_select_change_event
@@ -228,8 +231,8 @@ class MiscControls(QtGui.QWidget):
         :param arg:
         :return:
         """
-        print QtCore.QEvent.__dict__
-        if arg.type() == QtCore.QEvent.ActivationChange:
+        print QEvent.__dict__
+        if arg.type() == QEvent.ActivationChange:
             if self.pick_color_open_mutex.tryLock():
                 self.pick_color.close()
             self.pick_color_open_mutex.unlock()
@@ -248,7 +251,7 @@ class MiscControls(QtGui.QWidget):
 
         :return: A random color
         """
-        return QtGui.QColor(
+        return QColor(
             random.randint(0, 25) * 10,
             random.randint(0, 25) * 10,
             random.randint(0, 25) * 10,
@@ -274,8 +277,9 @@ class MiscControls(QtGui.QWidget):
 
 if __name__ == "__main__":
     import sys
+    from PyQt5.QtWidgets import QApplication
 
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     main = PanelConfigurer()
     main.show()
     exit(app.exec_())

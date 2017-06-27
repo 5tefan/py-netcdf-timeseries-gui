@@ -1,7 +1,7 @@
-from PyQt4 import QtGui
+from PyQt5.QtWidgets import QWidget, QFormLayout, QComboBox, QDoubleSpinBox
 
 
-class SpectroWindow(QtGui.QWidget):
+class SpectroWindow(QWidget):
     """ SpectroWindow selects the window type to use in the spectrgram
      from options in [1]. Defaults to a kaiser window with parameter 14.
 
@@ -20,15 +20,15 @@ class SpectroWindow(QtGui.QWidget):
 
     def __init__(self):
         super(SpectroWindow, self).__init__()
-        self.layout = QtGui.QFormLayout()
+        self.layout = QFormLayout()
         self.setLayout(self.layout)
 
-        self.select_window = QtGui.QComboBox()
+        self.select_window = QComboBox()
         self.select_window.addItems([x if isinstance(x, str) else x[0] for x in self.options])
         self.layout.addRow("window", self.select_window)
 
         self.needs_parameter = False
-        self.select_parameter = QtGui.QDoubleSpinBox()
+        self.select_parameter = QDoubleSpinBox()
         self.layout.addRow("param", self.select_parameter)
 
         self.select_window.currentIndexChanged.connect(self.window_type_changed)
@@ -85,7 +85,9 @@ class SpectroWindow(QtGui.QWidget):
 
 if __name__ == "__main__":
     import sys
-    app = QtGui.QApplication(sys.argv)
+    from PyQt5.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
     main = SpectroWindow()
     main.show()
     exit(app.exec_())

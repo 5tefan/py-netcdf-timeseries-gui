@@ -1,8 +1,9 @@
+from PyQt5.QtWidgets import QWizard, QWidget, QHBoxLayout, QWizardPage, QVBoxLayout
+
 import numpy as np
-from PyQt4 import QtGui
 from scipy.fftpack import fftfreq, fft
 
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
@@ -11,7 +12,7 @@ from pyntpg.analysis.frequency_analysis_helpers.signal_picker import SignalPicke
 from pyntpg.analysis.preview_result import PreviewResult
 
 
-class DiscreteFourierTransform(QtGui.QWizard):
+class DiscreteFourierTransform(QWizard):
 
     def __init__(self):
         super(DiscreteFourierTransform, self).__init__()
@@ -21,7 +22,7 @@ class DiscreteFourierTransform(QtGui.QWizard):
 
         self.addPage(self.choose_params_pg1)
         self.addPage(self.preview_result_pg2)
-        self.button(QtGui.QWizard.NextButton).clicked.connect(
+        self.button(QWizard.NextButton).clicked.connect(
             lambda _: self.preview_result_pg2.do_calculation(self.calculate)
         )
 
@@ -39,14 +40,14 @@ class DiscreteFourierTransform(QtGui.QWizard):
         return freqs, yf
 
 
-class ChooseParameters(QtGui.QWizardPage, object):
+class ChooseParameters(QWizardPage, object):
     def __init__(self):
         super(ChooseParameters, self).__init__()
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
-        picker_widgets = QtGui.QWidget()
-        hbox = QtGui.QHBoxLayout()
+        picker_widgets = QWidget()
+        hbox = QHBoxLayout()
         picker_widgets.setLayout(hbox)
         self.choose_signal = SignalPicker()
         hbox.addWidget(self.choose_signal)
