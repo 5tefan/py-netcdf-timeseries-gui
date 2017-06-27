@@ -1,33 +1,33 @@
 import netCDF4 as nc
-from PyQt4 import QtGui
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QProgressBar, QPlainTextEdit
 
 
-class NcinfoPreview(QtGui.QWidget):
+class NcinfoPreview(QWidget):
     """ A widget which displays a preview of the netcdf object
     loaded/accessible.
     """
 
     def __init__(self):
-        QtGui.QWidget.__init__(self)
-        self.layout = QtGui.QVBoxLayout()
+        super(NcinfoPreview, self).__init__()
+        self.layout = QVBoxLayout()
         self.layout.setSpacing(0)
         self.setLayout(self.layout)
 
-        status = QtGui.QWidget()
-        status_layout = QtGui.QHBoxLayout()
+        status = QWidget()
+        status_layout = QHBoxLayout()
         status_layout.setSpacing(0)
-        status_layout.setMargin(0)
+        status_layout.setContentsMargins(0, 0, 0, 0)
         status.setLayout(status_layout)
-        label = QtGui.QLabel("Dataset")
+        label = QLabel("Dataset")
         label.setContentsMargins(0, 6, 10, 6)
         status_layout.addWidget(label)
-        self.progress = QtGui.QProgressBar()
+        self.progress = QProgressBar()
         self.progress.setRange(0, 0)
         self.progress.setVisible(False)
         status_layout.addWidget(self.progress)
         self.layout.addWidget(status)
 
-        self.textbox = QtGui.QPlainTextEdit()
+        self.textbox = QPlainTextEdit()
         self.textbox.setReadOnly(True)
         self.layout.addWidget(self.textbox)
 
@@ -57,24 +57,17 @@ class NcinfoPreview(QtGui.QWidget):
         :return: A string to summarize the netCDF4 object
         """
         result = ""
-        for var in netcdf_obj.variables:
-            attrs = netcdf_obj.variables[var].ncattrs()
-            result += "%s\n" % var
-            if "units" in attrs:
-                result += "\t [ %s ] \n" % netcdf_obj.variables[var].getncattr("units")
-            else:
-                result += "\t [ no units ] \n"
-            if "description" in attrs:
-                result += "\t %s \n" % netcdf_obj.variables[var].getncattr("description")
-            result += "\n"
+        for var in netcdf_obj.variables.values():
+            result += "%s(%s): [%s]\n" % (var.name, ",".join(var.dimensions), getattr(var, "units", ""))
         return result
 
 
 # For testing individual widget
 if __name__ == "__main__":
     import sys
+    from PyQt5.QtWidgets import QApplication
 
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     main = NcinfoPreview()
     main.update_text(nc.Dataset('/home/scodresc/Downloads/g13_magneto_512ms_20160326_20160326.nc'))
     main.show()

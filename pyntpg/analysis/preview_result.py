@@ -1,9 +1,9 @@
-from PyQt4 import QtGui
+from PyQt5.QtWidgets import QWizardPage, QVBoxLayout, QProgressBar, QWidget
 
 from pyntpg.worker_thread import WorkerThread
 
 
-class PreviewResult(QtGui.QWizardPage, object):
+class PreviewResult(QWizardPage, object):
     """
     A QWizardPage Widget which should compose
     the last page of an analysis QWizard sequence
@@ -20,20 +20,20 @@ class PreviewResult(QtGui.QWizardPage, object):
     """
     def __init__(self):
         super(PreviewResult, self).__init__()
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
         # Initialize instance attributes
         self.calculation = None  # reference to WorkerThread if running
 
         # progress bar to display while WorkerThread executing
-        self.progress_bar = QtGui.QProgressBar()
+        self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 0)
         self.progress_bar.setVisible(False)  # set visible in do_calculation
         self.layout.addWidget(self.progress_bar)
 
-        self.result_display = QtGui.QWidget()
-        self.result_display_layout = QtGui.QVBoxLayout()
+        self.result_display = QWidget()
+        self.result_display_layout = QVBoxLayout()
         self.result_display.setLayout(self.result_display_layout)
         self.layout.addWidget(self.result_display)
 

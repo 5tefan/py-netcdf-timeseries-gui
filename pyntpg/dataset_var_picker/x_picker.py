@@ -1,4 +1,5 @@
-from PyQt4 import QtCore, QtGui
+from PyQt5.QtWidgets import QWidget, QComboBox, QDateTimeEdit, QFormLayout, QSpinBox, QVBoxLayout
+from PyQt5.QtCore import pyqtSlot
 import numpy as np
 import netCDF4 as nc
 from netCDF4._netCDF4 import _dateparse
@@ -51,41 +52,41 @@ class XPicker(DatasetVarPicker):
         }
 
         # create the toggle widget between axes types
-        self.toggle_type = QtGui.QComboBox()
+        self.toggle_type = QComboBox()
         self.toggle_type.addItems(self.types.keys())
         self.toggle_type.activated.connect(self.type_dispatcher)
         self.dataset_var_layout.insertRow(0, "type", self.toggle_type)
 
         # create the date slice widgets
         # TODO: oops, add change listeners
-        self.date_range_widget = QtGui.QWidget()
-        date_range_layout = QtGui.QFormLayout()
+        self.date_range_widget = QWidget()
+        date_range_layout = QFormLayout()
         self.date_range_widget.setLayout(date_range_layout)
-        self.start_time = QtGui.QDateTimeEdit()
+        self.start_time = QDateTimeEdit()
         self.start_time.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
         date_range_layout.addRow("start", self.start_time)
-        self.end_time = QtGui.QDateTimeEdit()
+        self.end_time = QDateTimeEdit()
         self.end_time.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
         date_range_layout.addRow("end", self.end_time)
         self.layout.addWidget(self.date_range_widget)
         # self.layout.insertWidget(self.layout.count(), self.date_range_widget)
 
         # create the index slicing widgets
-        self.index_range_widget = QtGui.QWidget()
-        index_range_layout = QtGui.QFormLayout()
+        self.index_range_widget = QWidget()
+        index_range_layout = QFormLayout()
         self.index_range_widget.setLayout(index_range_layout)
-        self.start_index = QtGui.QSpinBox()
+        self.start_index = QSpinBox()
         self.start_index.setMinimum(0)
         index_range_layout.addRow("start index", self.start_index)
-        self.end_index = QtGui.QSpinBox()
+        self.end_index = QSpinBox()
         self.end_index.setMinimum(1)
         index_range_layout.addRow("stop index", self.end_index)
         self.layout.addWidget(self.index_range_widget)
         # self.layout.insertWidget(self.layout.count()-1, self.index_range_widget)
 
         # create the area for dim slicing widgets if they are needed
-        self.dimension_picker_widget = QtGui.QWidget()
-        self.dimension_picker_layout = QtGui.QVBoxLayout()
+        self.dimension_picker_widget = QWidget()
+        self.dimension_picker_layout = QVBoxLayout()
         self.dimension_picker_layout.setSpacing(0)
         self.dimension_picker_widget.setLayout(self.dimension_picker_layout)
         self.dimension_picker_scroll = VerticalScrollArea()
@@ -108,7 +109,7 @@ class XPicker(DatasetVarPicker):
             # default to index
             return "index"
 
-    @QtCore.pyqtSlot(int)
+    @pyqtSlot(int)
     def type_dispatcher(self, _=0):
         """ Type dispacher calls the appropriate type_activated function, each of which
         puts the UI into the correct state for the corresponding type.
@@ -205,11 +206,11 @@ class XPicker(DatasetVarPicker):
                         if (dim in self.y_dim_slices.keys() and
                                         self.y_dim_slices[dim].stop - self.y_dim_slices[dim].start == 1):
 
-                            wid = QtGui.QWidget()
-                            hlayout = QtGui.QHBoxLayout()
+                            wid = QWidget()
+                            hlayout = QHBoxLayout()
                             wid.setLayout(hlayout)
-                            hlayout.addWidget(QtGui.QLabel(dim))
-                            combobox = QtGui.QComboBox()
+                            hlayout.addWidget(QLabel(dim))
+                            combobox = QComboBox()
                             combobox.addItems([str(x) for x in range(self.get_ncobj().dimensions[dim].size)])
                             hlayout.addWidget(combobox)
 
@@ -338,7 +339,8 @@ class XPicker(DatasetVarPicker):
 
 if __name__ == "__main__":
     import sys
-    app = QtGui.QApplication(sys.argv)
+    from PyQt5.QtWidgets import QApplication
+    app = QApplication(sys.argv)
     main = XPicker()
     main.show()
     exit(app.exec_())

@@ -1,16 +1,16 @@
-from PyQt4 import QtGui, QtCore
+from PyQt5.QtWidgets import QScrollArea, QFrame
+from PyQt5.QtCore import Qt, QEvent
 
-
-class VerticalScrollArea(QtGui.QScrollArea):
+class VerticalScrollArea(QScrollArea):
     def __init__(self):
         super(VerticalScrollArea, self).__init__()
         self.setWidgetResizable(True)
-        self.setFrameStyle(QtGui.QFrame.NoFrame)
-        self.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOff)
-        self.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.setFrameStyle(QFrame.NoFrame)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
     def eventFilter(self, o, e):
-        if o and o == self.widget() and e.type() == QtCore.QEvent.Resize:
+        if o and o == self.widget() and e.type() == QEvent.Resize:
             self.widget().resize(e.size())
             #self.setMinimumWidth(self.widget().minimumSizeHint().width() + self.verticalScrollBar().width())
-        return QtGui.QScrollArea.eventFilter(self, o, e)
+        return super(VerticalScrollArea, self).eventFilter(o, e)

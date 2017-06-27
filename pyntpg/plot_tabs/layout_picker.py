@@ -1,10 +1,11 @@
 from __future__ import print_function
-
-from PyQt4 import QtCore, QtGui
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QSplitter, QSpinBox, QDialogButtonBox, QFormLayout, QDialog
+from PyQt5.QtWidgets import QFrame, QHBoxLayout
+from PyQt5.QtCore import Qt
 
 # TODO: for the output function, make it so that all panels are an increment of 1/n where n is the number of panels
 
-class LayoutPicker(QtGui.QWidget):
+class LayoutPicker(QWidget):
     """ The LayoutPicker class creates a widget of numbered rectangles
     formed by movable sliders from which a user can very flexibly, but
     visually choose how subplots in their graph should look and be laid out.
@@ -19,11 +20,11 @@ class LayoutPicker(QtGui.QWidget):
         the sliders.
         :return: None
         """
-        QtGui.QWidget.__init__(self)
-        self.layout = QtGui.QVBoxLayout()
+        QWidget.__init__(self)
+        self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
-        title = QtGui.QLabel("Panel Layout")
+        title = QLabel("Panel Layout")
         self.layout.addWidget(title)
 
         self.visible_widgets = []
@@ -32,7 +33,7 @@ class LayoutPicker(QtGui.QWidget):
         self.hcount = 0  # number of cols
 
         self.vsplitter = None
-        self.make_splitters(2, 1)
+        self.make_splitters(1, 2)  # 1 col, 2 rows
 
     def make_splitters(self, height, width):
         # some variables we are going to need to keep track of everything
@@ -47,20 +48,20 @@ class LayoutPicker(QtGui.QWidget):
             pass
 
 
-        self.vsplitter = QtGui.QSplitter(QtCore.Qt.Vertical)
+        self.vsplitter = QSplitter(Qt.Vertical)
         self.vsplitter.setHandleWidth(2)
         self.vsplitter.setStyleSheet("QSplitter::handle {border: 1px solid white; background: black; }")
         for i in range(self.vcount):
-            hsplitter = QtGui.QSplitter(QtCore.Qt.Horizontal)
+            hsplitter = QSplitter(Qt.Horizontal)
             hsplitter.setHandleWidth(2)
             for j in range(self.hcount):
-                widget = QtGui.QFrame()
+                widget = QFrame()
                 self.widgets.append(widget)
                 self.visible_widgets.append(widget)
-                widget.setFrameShape(QtGui.QFrame.StyledPanel)
-                widget.setLayout(QtGui.QHBoxLayout())
+                widget.setFrameShape(QFrame.StyledPanel)
+                widget.setLayout(QHBoxLayout())
                 # initialize the label. Label text will be changed through indirect references
-                widget.layout().addWidget(QtGui.QLabel("%s" % self.visible_widgets.index(widget)))
+                widget.layout().addWidget(QLabel("%s" % self.visible_widgets.index(widget)))
                 hsplitter.addWidget(widget)
             self.vsplitter.addWidget(hsplitter)
             # connect splitterMoved after widgets added so things dont fire during setup
@@ -145,36 +146,37 @@ class LayoutPicker(QtGui.QWidget):
         return {"height_ratios": height_ratios, "width_ratios": width_ratios}
 
 
-class DimesnionChangeDialog(QtGui.QDialog):
+class DimesnionChangeDialog(QDialog):
     def __init__(self):
         super(DimesnionChangeDialog, self).__init__()
-        self.layout = QtGui.QFormLayout()
+        self.layout = QFormLayout()
         self.setLayout(self.layout)
 
         # add the height width inputs
-        self.height = QtGui.QSpinBox()
+        self.height = QSpinBox()
         self.height.setMinimum(1)
         self.layout.addRow("number ools", self.height)
-        self.width = QtGui.QSpinBox()
+        self.width = QSpinBox()
         self.width.setMinimum(1)
         self.layout.addRow("number rows", self.width)
 
         # add the cancel/Ok at bottom
-        buttonbox = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel,
-                                           QtCore.Qt.Horizontal, self)
+        buttonbox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel,
+                                           Qt.Horizontal, self)
         self.layout.addRow(buttonbox)
-        self.connect(buttonbox, QtCore.SIGNAL("accepted()"), self, QtCore.SLOT("accept()"))
-        self.connect(buttonbox, QtCore.SIGNAL("rejected()"), self, QtCore.SLOT("reject()"))
+        buttonbox.accepted.connect(self.accept)
+        buttonbox.rejected.connect(self.reject)
 
     def get(self):
-        if self.exec_() == QtGui.QDialog.Accepted:
+        if self.exec_() == QDialog.Accepted:
             return self.height.value(), self.width.value()
 
 # For testing individual widget
 if __name__ == "__main__":
     import sys
+    from PyQt5.QtWidgets import QApplication
 
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     main = LayoutPicker()
     main.show()
     exit(app.exec_())

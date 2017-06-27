@@ -1,7 +1,8 @@
 import datetime
 
+from PyQt5.QtWidgets import QWidget
+from PyQt5.QtCore import QCoreApplication
 import IPython
-from PyQt4 import QtCore
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from traitlets.config.configurable import MultipleInstanceError
@@ -39,9 +40,9 @@ class IPythonConsole(RichJupyterWidget):
         self.kernel_client = kernel_client
 
         # On new dict, push to console
-        QtCore.QCoreApplication.instance().datasets_updated.connect(self.add_vars)
+        QCoreApplication.instance().datasets_updated.connect(self.add_vars)
         # On varname change, change vars in console
-        QtCore.QCoreApplication.instance().dataset_name_changed.connect(self.rename_var)
+        QCoreApplication.instance().dataset_name_changed.connect(self.rename_var)
 
     def add_vars(self, dict_of_vars, hidden=True):
         self.kernel.shell.push(dict_of_vars)
@@ -64,7 +65,7 @@ class IPythonConsole(RichJupyterWidget):
         dict_of_vars = {var_name: ipy.user_ns[var_name]
                         for var_name in var_names
                         if self.is_plotable(self.kernel.shell.user_ns[var_name])}
-        QtCore.QCoreApplication.instance().update_console_vars(dict_of_vars)
+        QCoreApplication.instance().update_console_vars(dict_of_vars)
 
     def is_plotable(self, var_obj):
         """ Not all variables from the console will be eligible to plot,
@@ -107,9 +108,9 @@ class IPythonConsole(RichJupyterWidget):
 
 if __name__ == "__main__":
     import sys
-    from PyQt4 import QtGui
+    from PyQt5.QtWidgets import QApplication
 
-    app = QtGui.QApplication(sys.argv)
+    app = QApplication(sys.argv)
     main = IPythonConsole()
     main.show()
     exit(app.exec_())

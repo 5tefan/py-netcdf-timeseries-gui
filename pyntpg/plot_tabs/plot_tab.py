@@ -1,9 +1,11 @@
+from PyQt5.QtWidgets import QWidget, QGridLayout, QSizePolicy, QVBoxLayout
+from PyQt5.Qt import QKeySequence, QShortcut
+
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
-from PyQt4 import QtGui
 from matplotlib.axes._axes import Axes
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
 from pyntpg.plot_tabs.layout_picker import LayoutPicker
@@ -13,7 +15,7 @@ from pyntpg.plot_tabs.panel_configurer import PanelConfigurer
 from pyntpg.plot_tabs.plot_widget import plot_lines
 
 
-class PlotTab(QtGui.QWidget):
+class PlotTab(QWidget):
     """ Class PlotTab is a container for the contents of each plot tab.
     """
 
@@ -21,14 +23,14 @@ class PlotTab(QtGui.QWidget):
         """ Initialize layout, add main component widgets, and wire+connect the plot button.
         :return: None
         """
-        QtGui.QWidget.__init__(self)
-        self.layout = QtGui.QGridLayout()
+        QWidget.__init__(self)
+        self.layout = QGridLayout()
         self.setLayout(self.layout)
         # Odd, min height must be set for the vertical only scroll area to work
         self.setMinimumWidth(1)
 
         self.layout_picker = LayoutPicker()
-        self.layout_picker.setSizePolicy(QtGui.QSizePolicy.Expanding, QtGui.QSizePolicy.Expanding)
+        self.layout_picker.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.layout_picker.setMaximumWidth(400)
         self.layout.addWidget(self.layout_picker, 0, 0)
 
@@ -53,9 +55,9 @@ class PlotTab(QtGui.QWidget):
         :return: None
         """
         # create widget where plot and toolbar will go
-        self.plot_widget = QtGui.QWidget()
-        QtGui.QShortcut(QtGui.QKeySequence("Ctrl+W"), self.plot_widget, self.plot_widget.close)  # close shortcut
-        layout = QtGui.QVBoxLayout()
+        self.plot_widget = QWidget()
+        QShortcut(QKeySequence("Ctrl+W"), self.plot_widget, self.plot_widget.close)  # close shortcut
+        layout = QVBoxLayout()
         self.plot_widget.setLayout(layout)
 
         specs = self.layout_picker.create_gridspec()

@@ -1,11 +1,11 @@
-from PyQt4 import QtCore
+from PyQt5.QtCore import pyqtSignal
 
 from pyntpg.plot_tabs.panel_configurer import YPicker
 
 
 class SignalPicker(YPicker):
     # int size of variable, dict flattening slices, str dataset of origin
-    y_picked = QtCore.pyqtSignal(int, dict, str)
+    y_picked = pyqtSignal(int, dict, str)
 
     def __init__(self):
         super(SignalPicker, self).__init__(title="Select signal")

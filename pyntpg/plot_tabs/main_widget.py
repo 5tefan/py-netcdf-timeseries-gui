@@ -1,23 +1,24 @@
-from PyQt4 import QtGui, QtCore
+from PyQt5.QtWidgets import QTabWidget, QWidget, QTabBar, QLineEdit
+from PyQt5.QtCore import QMutex
 
 from pyntpg.plot_tabs.plot_tab import PlotTab
 from pyntpg.vertical_scroll_area import VerticalScrollArea
 
 
-class PlotTabs(QtGui.QTabWidget):
+class PlotTabs(QTabWidget):
     def __init__(self):
-        QtGui.QTabWidget.__init__(self)
-        self.mutex = QtCore.QMutex()
+        super(PlotTabs, self).__init__()
+        self.mutex = QMutex()
         self.setTabBar(PlotTabBar())
         scrollarea = VerticalScrollArea()
         scrollarea.setWidget(PlotTab())
         self.addTab(scrollarea, "plot")
 
         # Add the "+" tab and make sure it has no close button
-        plus_tab = QtGui.QWidget()
+        plus_tab = QWidget()
         self.addTab(plus_tab, "+")
         index = self.indexOf(plus_tab)
-        self.tabBar().setTabButton(index, QtGui.QTabBar.RightSide, None)
+        self.tabBar().setTabButton(index, QTabBar.RightSide, None)
 
         self.currentChanged.connect(self.tab_changed)
         self.tabCloseRequested.connect(self.close_tab)
@@ -39,13 +40,13 @@ class PlotTabs(QtGui.QTabWidget):
         self.removeTab(index)
 
 
-class PlotTabBar(QtGui.QTabBar):
+class PlotTabBar(QTabBar):
     # credits of http://stackoverflow.com/a/30269356
     def __init__(self):
-        QtGui.QTabBar.__init__(self)
+        super(PlotTabBar, self).__init__()
         # Mutex to keep from editing another tab
         # while one is already being edited
-        self.mutex = QtCore.QMutex()
+        self.mutex = QMutex()
         self.setTabsClosable(True)
 
     def mouseDoubleClickEvent(self, event=None):
@@ -61,7 +62,7 @@ class PlotTabBar(QtGui.QTabBar):
         rect = self.tabRect(tab_index)
         top_margin = 3
         left_margin = 6
-        self.__edit = QtGui.QLineEdit(self)
+        self.__edit = QLineEdit(self)
         self.__edit.show()
         self.__edit.move(rect.left() + left_margin, rect.top() + top_margin)
         self.__edit.resize(rect.width() - 2 * left_margin, rect.height() - 2 * top_margin)

@@ -1,7 +1,7 @@
-from datetime import datetime, time
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QRadioButton, QFormLayout, QDateTimeEdit, QSpinBox, QDoubleSpinBox
 
+from datetime import datetime, time
 import numpy as np
-from PyQt4 import QtGui
 import netCDF4 as nc
 from netCDF4._netCDF4 import _dateparse
 
@@ -19,17 +19,17 @@ class FrequencyPicker(FlatDatasetVarPicker):
 
         # Create the toggle between entering frequency and
         # selecting an array of times.
-        toggle_widget = QtGui.QWidget()
-        toggle_layout = QtGui.QHBoxLayout()
+        toggle_widget = QWidget()
+        toggle_layout = QHBoxLayout()
         toggle_widget.setLayout(toggle_layout)
 
         # by frequency radio button toggle
-        self.by_frequency = QtGui.QRadioButton("Enter frequency")
+        self.by_frequency = QRadioButton("Enter frequency")
         self.by_frequency.clicked.connect(self.by_frequency_clicked)
         toggle_layout.addWidget(self.by_frequency)
 
         # by time radio button toggle
-        self.by_times = QtGui.QRadioButton("Select times")
+        self.by_times = QRadioButton("Select times")
         self.by_times.clicked.connect(self.by_times_clicked)
         toggle_layout.addWidget(self.by_times)
 
@@ -38,10 +38,10 @@ class FrequencyPicker(FlatDatasetVarPicker):
         # Create the input/edit for frequency.
         # Note: no widgets created for variable pick by times
         # because it's inherited from FlatDatasetVarPicker
-        self.frequency_widget = QtGui.QWidget()
-        self.frequency_layout = QtGui.QFormLayout()
+        self.frequency_widget = QWidget()
+        self.frequency_layout = QFormLayout()
         self.frequency_widget.setLayout(self.frequency_layout)
-        self.frequency = QtGui.QDoubleSpinBox()
+        self.frequency = QDoubleSpinBox()
         self.frequency.setDecimals(5)
         self.frequency_layout.addRow("Frequency (Hz)", self.frequency)
         # note the insert at count - 1 to put it above the stretch
@@ -49,25 +49,25 @@ class FrequencyPicker(FlatDatasetVarPicker):
 
         # create the date slice widgets
         # TODO: oops, add change listeners
-        self.date_range_widget = QtGui.QWidget()
-        date_range_layout = QtGui.QFormLayout()
+        self.date_range_widget = QWidget()
+        date_range_layout = QFormLayout()
         self.date_range_widget.setLayout(date_range_layout)
-        self.start_time = QtGui.QDateTimeEdit()
+        self.start_time = QDateTimeEdit()
         self.start_time.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
         date_range_layout.addRow("start", self.start_time)
-        self.end_time = QtGui.QDateTimeEdit()
+        self.end_time = QDateTimeEdit()
         self.end_time.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
         date_range_layout.addRow("end", self.end_time)
         self.layout.insertWidget(self.layout.count()-1, self.date_range_widget)
 
         # create the index slicing widgets
-        self.index_range_widget = QtGui.QWidget()
-        index_range_layout = QtGui.QFormLayout()
+        self.index_range_widget = QWidget()
+        index_range_layout = QFormLayout()
         self.index_range_widget.setLayout(index_range_layout)
-        self.start_index = QtGui.QSpinBox()
+        self.start_index = QSpinBox()
         self.start_index.setMinimum(0)
         index_range_layout.addRow("start index", self.start_index)
-        self.end_index = QtGui.QSpinBox()
+        self.end_index = QSpinBox()
         index_range_layout.addRow("stop index", self.end_index)
         self.layout.insertWidget(self.layout.count()-1, self.index_range_widget)
 
