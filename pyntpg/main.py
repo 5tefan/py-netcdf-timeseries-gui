@@ -50,13 +50,12 @@ class Application(QApplication):
         # the max height of buttons on the interface
         fm = QFontMetrics(font)
         min_height = fm.height()
-        max_height = int(float(fm.height())*1.2)
+        max_height = int(float(fm.height()) * 1.2)
         self.setStyleSheet("QPushButton { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
                            "QComboBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
                            "QSpinBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
                            "QDateTimeEdit { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
                            % {"max_height": max_height, "min_height": min_height})
-
 
     def update_datasets(self, datasets_dict=None):
         """ Accept dicts of the datasets available from the tabs and emit
@@ -92,6 +91,7 @@ class Application(QApplication):
 class MainWindow(QMainWindow):
     """ The main window of the QT application. It contains eg. the file menu, etc.
     """
+
     def __init__(self):
         super(MainWindow, self).__init__()
         self.setWindowTitle("pyntpg")
@@ -171,7 +171,7 @@ class MainWindow(QMainWindow):
         # the call is getInt(QWidget * parent, const QString & title, const QString & label, int value = 0,
         #  int min = -2147483647, int max = 2147483647, int step = 1, bool * ok = 0, Qt::WindowFlags flags = 0)
         result = QInputDialog.getInt(None, "set preview decimation", "decimate by",
-                                           PanelConfigurer.preview_decimation, 1)[0]
+                                     PanelConfigurer.preview_decimation, 1)[0]
         if result:
             PanelConfigurer.preview_decimation = result
 
@@ -186,10 +186,24 @@ class MainWindow(QMainWindow):
         self.ipython_wid.show()
         self.ipython_wid.raise_()
 
-if __name__ == "__main__":
+
+# from http://pyqt.sourceforge.net/Docs/PyQt5/gotchas.html#crashes-on-exit
+# Another common pattern (and one that is required when using setuptool
+# entry points) is that the above code in placed in a separate function,
+# typically called main(). This then causes a problem when the function
+# returns as the destructors of the QApplication and QWidget instances
+#  may be invoked in the wrong order. To minimise the chances of this
+# happening, the following pattern is recommended:
+app = None
+def main():
+    global app
     app = Application(sys.argv)
 
     window = MainWindow()
     window.show()
 
     exit(app.exec_())
+
+
+if __name__ == "__main__":
+    main()
