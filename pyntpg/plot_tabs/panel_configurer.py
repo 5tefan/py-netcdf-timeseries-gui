@@ -190,7 +190,6 @@ class MiscControls(QWidget):
         style_picker = QWidget()
         style_picker_layout = QFormLayout()
         style_picker.setLayout(style_picker_layout)
-        self.pick_color_open_mutex = QMutex()
         self.pick_color_button = QPushButton()
         self.pick_color_button.clicked.connect(self.open_color_picker)
         style_picker_layout.addRow("Stroke Color", self.pick_color_button)
@@ -215,32 +214,18 @@ class MiscControls(QWidget):
         self.layout.addStretch()
 
     def open_color_picker(self):
-        self.pick_color = QColorDialog()
-        self.pick_color.currentColorChanged.connect(self.color_selected)
+        self.pick_color = QColorDialog(self.color_picked, self)
+        # currentColorChanged signals on click, makes cancel button useless.
+        # only listen for colorSelected, emitted on clicking "ok"
         self.pick_color.colorSelected.connect(self.color_selected)
-        self.pick_color.changeEvent = self.color_select_change_event
-        self.pick_color_open_mutex.lock()
         self.pick_color.open()
 
     def color_selected(self, color):
-        self.color_picked = color.name()
+        self.color_picked = color
         self.pick_color_button.setStyleSheet("background: %s" % color.name())
 
-    def color_select_change_event(self, arg):
-        """
-        :param arg:
-        :return:
-        """
-        print QEvent.__dict__
-        if arg.type() == QEvent.ActivationChange:
-            if self.pick_color_open_mutex.tryLock():
-                self.pick_color.close()
-            self.pick_color_open_mutex.unlock()
-
     def set_random_color(self):
-        """ Set the color selector to a random color.
-        :return: None
-        """
+        """ Set the color selector to a random color. """
         self.color_selected(self.make_random_color())
 
     @staticmethod
@@ -249,6 +234,7 @@ class MiscControls(QWidget):
         Each rgb must be b/w 0, 255. Randint * 10 ensures
         possible colors likely be visibly distinct.
 
+        :rtype: QColor
         :return: A random color
         """
         return QColor(
@@ -268,7 +254,7 @@ class MiscControls(QWidget):
         else:
             line_style = str(self.pick_line.currentText())
             line_marker = ""
-        return {"color": self.color_picked,
+        return {"color": self.color_picked.name(),
                 "linestyle": line_style,
                 "marker": line_marker,
                 "panel-dest": self.pick_panel.value(),
