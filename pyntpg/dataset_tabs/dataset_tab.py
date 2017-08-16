@@ -6,7 +6,7 @@ from tempfile import mkstemp
 
 from pyntpg.dataset_tabs.file_picker import FilePicker
 from pyntpg.dataset_tabs.ncinfo_preview import NcinfoPreview
-from aggregoes.aggregator import Aggregator
+from ncagg.aggregator import aggregate
 
 
 # Each tab is an instance of this QWidget
@@ -54,7 +54,7 @@ class DatasetTab(QWidget):
             self.noblock.start()
         elif filelist is not None and len(filelist) == 1:
             # no need to aggregate
-            nc_obj = nc.Dataset(filelist[0], "r")
+            nc_obj = nc.Dataset(filelist[0], "r", keepweakref=True)
             self.handle_new_ncobj(nc_obj)
         else:
             self.handle_new_ncobj(None)
@@ -93,11 +93,9 @@ class NcConcatThread(QThread):
         :return: None
         """
         # TODO: connect progress bar to evaluate_arrgregation_list callback
-        a = Aggregator()
-        agg_list = a.generate_aggregation_list(self.files)
         _, nc_file = mkstemp()  # returns (os.open() handle, and abs path to file) tuple
-        a.evaluate_aggregation_list(agg_list, nc_file)
-        nc_obj = nc.Dataset(nc_file)
+        aggregate(self.files, nc_file)
+        nc_obj = nc.Dataset(nc_file, keepweakref=True)
         self.has_data.emit(nc_obj)  # TODO: close and delete temp file later
 
     # TODO: attach this to the object somehow so that plot tabs can use this

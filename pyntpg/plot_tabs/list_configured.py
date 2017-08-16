@@ -97,7 +97,7 @@ class ListConfigured(QWidget):
         self.list.setItemWidget(item, widget)
         if self.list.count() == 1:
             self.list.setCurrentItem(item)
-        self.list.setSortingEnabled(True)
+        # self.list.setSortingEnabled(True)
         self.remove_button.setVisible(True)
         self.plot_button.setVisible(True)
 
