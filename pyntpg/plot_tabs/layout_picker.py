@@ -3,6 +3,7 @@ from __future__ import print_function
 from PyQt4 import QtCore, QtGui
 
 # TODO: for the output function, make it so that all panels are an increment of 1/n where n is the number of panels
+DEFAULT_LAYOUT = (1, 2)  # number cols, number rows
 
 class LayoutPicker(QtGui.QWidget):
     """ The LayoutPicker class creates a widget of numbered rectangles
@@ -32,7 +33,7 @@ class LayoutPicker(QtGui.QWidget):
         self.hcount = 0  # number of cols
 
         self.vsplitter = None
-        self.make_splitters(2, 1)
+        self.make_splitters(*DEFAULT_LAYOUT)
 
     def make_splitters(self, height, width):
         # some variables we are going to need to keep track of everything
@@ -45,7 +46,6 @@ class LayoutPicker(QtGui.QWidget):
             self.vsplitter.deleteLater()
         except AttributeError:
             pass
-
 
         self.vsplitter = QtGui.QSplitter(QtCore.Qt.Vertical)
         self.vsplitter.setHandleWidth(2)
@@ -68,7 +68,6 @@ class LayoutPicker(QtGui.QWidget):
         self.vsplitter.splitterMoved.connect(self.recalculate_visible_vertical)
 
         self.layout.addWidget(self.vsplitter)
-
 
     def recalculate_visible_horizontal(self):
         """ When a horizontal Slider is moved, see if it closed or opened
