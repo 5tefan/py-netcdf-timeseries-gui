@@ -1,13 +1,16 @@
 import netCDF4 as nc
-from PyQt4 import QtCore, QtGui
+from PyQt5.QtWidgets import QWidget, QGridLayout
+from PyQt5.QtCore import pyqtSignal, QThread
+
+from tempfile import mkstemp
 
 from pyntpg.dataset_tabs.file_picker import FilePicker
 from pyntpg.dataset_tabs.ncinfo_preview import NcinfoPreview
-from pyntpg.goesr_nc_concat import goesr_nc_concat
+from ncagg.aggregator import aggregate
 
 
 # Each tab is an instance of this QWidget
-class DatasetTab(QtGui.QWidget):
+class DatasetTab(QWidget):
     """ Each dataset tab is an instance of this class/widget. While FilePicker and
     NcinfoPreview are modular components, this widget is the "glue" responsible for
     processing the files selected, concatenating the netCDF files, and giving the
@@ -15,13 +18,13 @@ class DatasetTab(QtGui.QWidget):
     """
     nc_obj = None  # Storage for the netCDF object
     noblock = None  # Storage for QThread when running, otherwise None
-    received_dataset = QtCore.pyqtSignal()
+    received_dataset = pyqtSignal()
 
     def __init__(self, parent):
-        QtGui.QWidget.__init__(self, parent)
-        self.layout = QtGui.QGridLayout()
+        super(DatasetTab, self).__init__(parent)
+        self.layout = QGridLayout()
         self.layout.setSpacing(0)
-        self.layout.setMargin(0)
+        self.layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout)
 
         self.filepicker = FilePicker()
@@ -39,7 +42,7 @@ class DatasetTab(QtGui.QWidget):
         :param filelist: An array of strings filenames of netcdf files to be concatented
         :return: None
         """
-        if filelist:
+        if filelist is not None and len(filelist) > 1:
             # Note noblock must be a member of this class so that it
             # doesnt get destroyed while the thread is still running
             self.preview.show_progress()
@@ -49,6 +52,10 @@ class DatasetTab(QtGui.QWidget):
             self.noblock = NcConcatThread(filelist)
             self.noblock.has_data.connect(self.handle_new_ncobj)
             self.noblock.start()
+        elif filelist is not None and len(filelist) == 1:
+            # no need to aggregate
+            nc_obj = nc.Dataset(filelist[0], "r", keepweakref=True)
+            self.handle_new_ncobj(nc_obj)
         else:
             self.handle_new_ncobj(None)
 
@@ -69,14 +76,14 @@ class DatasetTab(QtGui.QWidget):
         self.received_dataset.emit()
 
 
-class NcConcatThread(QtCore.QThread):
+class NcConcatThread(QThread):
     """ Since the concatenation can take a while, this is in a separate thread
     so it doesn't block the gui during the computation.
     """
-    has_data = QtCore.pyqtSignal(object)  # Signal when the data is ready
+    has_data = pyqtSignal(object)  # Signal when the data is ready
 
     def __init__(self, files):
-        QtCore.QThread.__init__(self)
+        super(NcConcatThread, self).__init__()
         self.files = files
 
     def run(self):
@@ -85,8 +92,11 @@ class NcConcatThread(QtCore.QThread):
         to begin execution in a new thread.
         :return: None
         """
-        nc_obj = goesr_nc_concat(self.files)
-        self.has_data.emit(nc_obj)
+        # TODO: connect progress bar to evaluate_arrgregation_list callback
+        _, nc_file = mkstemp()  # returns (os.open() handle, and abs path to file) tuple
+        aggregate(self.files, nc_file)
+        nc_obj = nc.Dataset(nc_file, keepweakref=True)
+        self.has_data.emit(nc_obj)  # TODO: close and delete temp file later
 
     # TODO: attach this to the object somehow so that plot tabs can use this
     def convert_dates(self, nc_obj):

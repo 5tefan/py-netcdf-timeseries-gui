@@ -1,14 +1,14 @@
-from PyQt4 import QtCore
+from PyQt5.QtCore import QThread, pyqtSignal
 
 
-class WorkerThread(QtCore.QThread):
+class WorkerThread(QThread):
     """ Bery basic wrapper around QThread which runs the function
     fn when called and emits a finished singal with the results when finished.
     """
-    finished = QtCore.pyqtSignal(object)
+    finished = pyqtSignal(object)
 
-    def __init__(self, fn):
-        super(WorkerThread, self).__init__()
+    def __init__(self, fn, **kwargs):
+        super(WorkerThread, self).__init__(**kwargs)
         self.fn = fn
 
     def run(self):

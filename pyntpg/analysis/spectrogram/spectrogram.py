@@ -1,6 +1,6 @@
-from PyQt4 import QtGui
+from PyQt5.QtWidgets import QWizard, QWidget, QHBoxLayout, QFormLayout, QSpinBox, QComboBox
 
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
@@ -9,7 +9,7 @@ from pyntpg.analysis.preview_result import PreviewResult
 from pyntpg.analysis.spectrogram.spectro_window import SpectroWindow
 
 
-class Spectrogram(QtGui.QWizard):
+class Spectrogram(QWizard):
     def __init__(self):
         super(Spectrogram, self).__init__()
         self.page1 = ChooseSpectroParameters()
@@ -18,7 +18,7 @@ class Spectrogram(QtGui.QWizard):
         self.addPage(self.page1)
         self.addPage(self.page2)
 
-        self.button(QtGui.QWizard.NextButton).clicked.connect(lambda _: self.page2.do_calculation(self.calculate))
+        self.button(QWizard.NextButton).clicked.connect(lambda _: self.page2.do_calculation(self.calculate))
 
     def calculate(self):
         from scipy.signal import spectrogram
@@ -35,8 +35,8 @@ class ChooseSpectroParameters(ChooseParameters):
         super(ChooseSpectroParameters, self).__init__()
 
         # Add all the other parameters for a spectrogram
-        options = QtGui.QWidget()
-        options_layout = QtGui.QHBoxLayout()
+        options = QWidget()
+        options_layout = QHBoxLayout()
         options.setLayout(options_layout)
         self.layout.addWidget(options)
 
@@ -45,12 +45,12 @@ class ChooseSpectroParameters(ChooseParameters):
         options_layout.addWidget(self.choose_window)
 
         # make a new form layout for nperseg and lenstep
-        secondformcol = QtGui.QWidget()
-        secondformcollayout = QtGui.QFormLayout()
+        secondformcol = QWidget()
+        secondformcollayout = QFormLayout()
         secondformcol.setLayout(secondformcollayout)
 
         # Choose nperseg
-        self.choose_nperseg = QtGui.QSpinBox()
+        self.choose_nperseg = QSpinBox()
         self.choose_nperseg.setMinimum(3)
         self.choose_nperseg.setMaximum(256)  # defult taken from scipy.signal.spectrogram
         self.choose_nperseg.setValue(256)
@@ -58,7 +58,7 @@ class ChooseSpectroParameters(ChooseParameters):
         secondformcollayout.addRow("nperseg", self.choose_nperseg)
 
         # choose lenstep
-        self.choose_lenstep = QtGui.QSpinBox()
+        self.choose_lenstep = QSpinBox()
         self.choose_lenstep.setMinimum(1)
         self.choose_lenstep.setMaximum(256)
         self.choose_lenstep.setValue(256/8)  # default taken from scipy.signal.spectrogram
@@ -72,17 +72,17 @@ class ChooseSpectroParameters(ChooseParameters):
         options_layout.addWidget(secondformcol)
 
         # make the third column for the remaining spectrogram params
-        thirdformcol = QtGui.QWidget()
-        thirdformcollayout = QtGui.QFormLayout()
+        thirdformcol = QWidget()
+        thirdformcollayout = QFormLayout()
         thirdformcol.setLayout(thirdformcollayout)
 
         # choose detrend
-        self.choose_detrend = QtGui.QComboBox()
+        self.choose_detrend = QComboBox()
         self.choose_detrend.addItems(["constant", "linear", "none"])
         thirdformcollayout.addRow("detrend", self.choose_detrend)
 
         # choose scaling
-        self.choose_scaling = QtGui.QComboBox()
+        self.choose_scaling = QComboBox()
         self.choose_scaling.addItems(["density", "spectrum"])
         thirdformcollayout.addRow("scaling", self.choose_scaling)
 

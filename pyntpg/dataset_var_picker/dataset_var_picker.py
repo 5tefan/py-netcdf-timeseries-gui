@@ -1,9 +1,10 @@
-from PyQt4 import QtGui, QtCore
+from PyQt5.QtWidgets import QWidget, QComboBox, QVBoxLayout, QLabel, QFormLayout, QSizePolicy
+from PyQt5.QtCore import QCoreApplication
 import numpy as np
 
 from_console_text = "Analysis results"
 
-class DatasetVarPicker(QtGui.QWidget, object):
+class DatasetVarPicker(QWidget, object):
     """ Base class for picking what goes on the axes.
     Provides a title, and the dataset and variable selection.
     This is intended to be inherited because the slots listening for
@@ -18,38 +19,38 @@ class DatasetVarPicker(QtGui.QWidget, object):
         :return: None
         """
         super(DatasetVarPicker, self).__init__()
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QVBoxLayout()
         self.layout.setContentsMargins(0, 0, 5, 0)
         self.setLayout(self.layout)
 
         if title is not None:
-            self.layout.addWidget(QtGui.QLabel(title))
+            self.layout.addWidget(QLabel(title))
 
         # container for the dataset and var selection comboboxes
-        self.dataset_var_widget = QtGui.QWidget()
-        self.dataset_var_layout = QtGui.QFormLayout()
+        self.dataset_var_widget = QWidget()
+        self.dataset_var_layout = QFormLayout()
         self.dataset_var_widget.setLayout(self.dataset_var_layout)
         # -----------
-        self.dataset_widget = QtGui.QComboBox()
+        self.dataset_widget = QComboBox()
         # self.dataset_widget.addItem(from_console_text)
         self.dataset_widget.currentIndexChanged.connect(self.update_variables)
-        self.dataset_widget.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
+        self.dataset_widget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
         self.dataset_widget.setMaximumWidth(200)
         self.dataset_var_layout.addRow("Source", self.dataset_widget)
-        self.variable_widget = QtGui.QComboBox()
-        self.variable_widget.setSizePolicy(QtGui.QSizePolicy.MinimumExpanding, QtGui.QSizePolicy.Preferred)
+        self.variable_widget = QComboBox()
+        self.variable_widget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
         self.variable_widget.setMaximumWidth(200)
         self.dataset_var_layout.addRow("Var", self.variable_widget)
         self.layout.addWidget(self.dataset_var_widget)
         # -----------
         try:  # Can't do these if eg. running from main in this file
             # connect the update handlers
-            QtCore.QCoreApplication.instance().datasets_updated.connect(self.update_datasets)
-            QtCore.QCoreApplication.instance().console_vars_updated.connect(self.update_console_vars)
-            QtCore.QCoreApplication.instance().dataset_name_changed.connect(self.rename_dataset)
+            QCoreApplication.instance().datasets_updated.connect(self.update_datasets)
+            QCoreApplication.instance().console_vars_updated.connect(self.update_console_vars)
+            QCoreApplication.instance().dataset_name_changed.connect(self.rename_dataset)
             # then for initial data, manually put that through
-            self.update_datasets(QtCore.QCoreApplication.instance().dict_of_datasets)
-            self.update_console_vars(QtCore.QCoreApplication.instance().dict_of_vars)
+            self.update_datasets(QCoreApplication.instance().dict_of_datasets)
+            self.update_console_vars(QCoreApplication.instance().dict_of_vars)
         except AttributeError as e:
             assert False, e
 
@@ -62,7 +63,7 @@ class DatasetVarPicker(QtGui.QWidget, object):
         and isn't there already.
         :return: Boolean if from_console_text was inserted
         """
-        vars_has_items = len(QtCore.QCoreApplication.instance().dict_of_vars) > 0
+        vars_has_items = len(QCoreApplication.instance().dict_of_vars) > 0
         from_console_needs_inserting = self.dataset_widget.findText(from_console_text) == -1
         if vars_has_items and from_console_needs_inserting:
             self.dataset_widget.insertItem(0, from_console_text)
@@ -96,14 +97,14 @@ class DatasetVarPicker(QtGui.QWidget, object):
         self.variable_widget.clear()
         current_dataset = str(self.dataset_widget.currentText())
         if current_dataset == from_console_text:  # If the IPython console is selected
-            for var in QtCore.QCoreApplication.instance().dict_of_vars.keys():
-                var_value = QtCore.QCoreApplication.instance().dict_of_vars[var]
+            for var in QCoreApplication.instance().dict_of_vars.keys():
+                var_value = QCoreApplication.instance().dict_of_vars[var]
                 if self.show_var_condition(var_value):
                     self.variable_widget.addItem(var)
         else:  # Otherwise must fetch from the netcdf obj
             try:
-                nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
-                for var in QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset].variables:
+                nc_obj = QCoreApplication.instance().dict_of_datasets[current_dataset]
+                for var in QCoreApplication.instance().dict_of_datasets[current_dataset].variables:
                     if self.show_var_condition(nc_obj.variables[var], nc_obj):
                         self.variable_widget.addItem(var)
             except KeyError:
@@ -129,7 +130,7 @@ class DatasetVarPicker(QtGui.QWidget, object):
         else:
             # Bugfix: if from_console_text not already in source dropdown,
             # it won't ever show up. So this updates the source list when we get a
-            # new console var, ie trigger the len(QtCore.QCoreApplication.instance().dict_of_vars) > 0
+            # new console var, ie trigger the len(QCoreApplication.instance().dict_of_vars) > 0
             # statement to include console var option in source
             self.insert_from_console_option()
 
@@ -149,7 +150,7 @@ class DatasetVarPicker(QtGui.QWidget, object):
             return None
         current_variable = str(self.variable_widget.currentText())
         try:
-            nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
+            nc_obj = QCoreApplication.instance().dict_of_datasets[current_dataset]
             return nc_obj.variables[current_variable]
         except KeyError:
             return None
@@ -162,7 +163,7 @@ class DatasetVarPicker(QtGui.QWidget, object):
         if current_dataset == from_console_text:
             return None
         try:
-            return QtCore.QCoreApplication.instance().dict_of_datasets[current_dataset]
+            return QCoreApplication.instance().dict_of_datasets[current_dataset]
         except KeyError:
             return None
 
@@ -189,13 +190,13 @@ class DatasetVarPicker(QtGui.QWidget, object):
         elif dataset == from_console_text:
             try:
                 print "returning from_console_text variable"
-                print QtCore.QCoreApplication.instance().dict_of_vars[variable][oslice]
-                return QtCore.QCoreApplication.instance().dict_of_vars[variable][oslice]
+                print QCoreApplication.instance().dict_of_vars[variable][oslice]
+                return QCoreApplication.instance().dict_of_vars[variable][oslice]
             except AttributeError:
                 return []
         else:
             try:
-                return QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][oslice]
+                return QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][oslice]
             except AttributeError:
                 return []
 
@@ -213,7 +214,7 @@ class DatasetVarPicker(QtGui.QWidget, object):
             return np.shape(self.get_values())
         else:
             try:
-                ncvar = QtCore.QCoreApplication.instance().dict_of_datasets[dataset].variables[variable]
+                ncvar = QCoreApplication.instance().dict_of_datasets[dataset].variables[variable]
                 return ncvar.shape
             except AttributeError:
                 return ()

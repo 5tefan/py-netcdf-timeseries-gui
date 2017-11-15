@@ -1,5 +1,6 @@
 import numpy as np
-from PyQt4 import QtGui, QtCore
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSpinBox, QLabel
+from PyQt5.QtCore import QCoreApplication
 
 from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, from_console_text
 from pyntpg.vertical_scroll_area import VerticalScrollArea
@@ -24,8 +25,8 @@ class FlatDatasetVarPicker(DatasetVarPicker):
 
         self.variable_widget.currentIndexChanged.connect(self.check_dims)
 
-        self.dimension_picker_widget = QtGui.QWidget()
-        self.dimension_picker_layout = QtGui.QVBoxLayout()
+        self.dimension_picker_widget = QWidget()
+        self.dimension_picker_layout = QVBoxLayout()
         self.dimension_picker_layout.setSpacing(0)
         self.dimension_picker_widget.setLayout(self.dimension_picker_layout)
 
@@ -70,7 +71,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
         elif dataset == from_console_text:
             # deal with a multidimensional variable coming from console, or elsewhere
             try:
-                listlike = QtCore.QCoreApplication.instance().dict_of_vars[variable]
+                listlike = QCoreApplication.instance().dict_of_vars[variable]
             except AttributeError:
                 return None  # bail if can't find the variable
 
@@ -81,7 +82,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
 
         else:  # otherwise this should be a Netcdf object
             try:
-                nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[dataset]
+                nc_obj = QCoreApplication.instance().dict_of_datasets[dataset]
             except AttributeError:
                 return None  # bail if can't find the netcdf object
 
@@ -116,14 +117,14 @@ class FlatDatasetVarPicker(DatasetVarPicker):
             # enumerate with i to auto set the last dim to size 1
 
             # create the container to hold the slices
-            slice_container = QtGui.QWidget()
-            slice_container_layout = QtGui.QHBoxLayout()
+            slice_container = QWidget()
+            slice_container_layout = QHBoxLayout()
             slice_container.setLayout(slice_container_layout)
 
             # create dim spinboxes and add them to layout
-            begin_spinbox = QtGui.QSpinBox()
+            begin_spinbox = QSpinBox()
             begin_spinbox.setMaximum(listlike.shape[dim]-1)
-            end_spinbox = QtGui.QSpinBox()
+            end_spinbox = QSpinBox()
             end_spinbox.setMaximum(listlike.shape[dim])
             if dim == dim_len - 1:  # if it's the last dimension take only 1
                 end_spinbox.setValue(1)
@@ -132,7 +133,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
             begin_spinbox.valueChanged.connect(lambda x, end_spinbox=end_spinbox: end_spinbox.setMinimum(x+1))
             slice_container_layout.addWidget(begin_spinbox)
 
-            colon = QtGui.QLabel(":")
+            colon = QLabel(":")
             colon.setMaximumWidth(5)
             slice_container_layout.addWidget(colon)
 
@@ -141,7 +142,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
             result += [begin_spinbox, end_spinbox]
             # Add spinboxes to self.flattenings to look up later
             self.flattenings[dim] = (begin_spinbox, end_spinbox)
-            self.dimension_picker_layout.addWidget(QtGui.QLabel("dim %s" % dim))
+            self.dimension_picker_layout.addWidget(QLabel("dim %s" % dim))
             self.dimension_picker_layout.addWidget(slice_container)
         return result
 
@@ -174,14 +175,14 @@ class FlatDatasetVarPicker(DatasetVarPicker):
             # enumerate with i to auto set the last dim to size 1
 
             # create the container to hold the slices
-            slice_container = QtGui.QWidget()
-            slice_container_layout = QtGui.QHBoxLayout()
+            slice_container = QWidget()
+            slice_container_layout = QHBoxLayout()
             slice_container.setLayout(slice_container_layout)
 
             # create dim spinboxes and add them to layout
-            begin_spinbox = QtGui.QSpinBox()
+            begin_spinbox = QSpinBox()
             begin_spinbox.setMaximum(nc_obj.dimensions[dim].size-1)
-            end_spinbox = QtGui.QSpinBox()
+            end_spinbox = QSpinBox()
             end_spinbox.setMaximum(nc_obj.dimensions[dim].size)
             if i == dim_len - 1:  # if it's the last dimension take only 1
                 end_spinbox.setValue(1)
@@ -190,7 +191,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
             begin_spinbox.valueChanged.connect(lambda x, end_spinbox=end_spinbox: end_spinbox.setMinimum(x+1))
             slice_container_layout.addWidget(begin_spinbox)
 
-            colon = QtGui.QLabel(":")
+            colon = QLabel(":")
             colon.setMaximumWidth(5)
             slice_container_layout.addWidget(colon)
 
@@ -199,7 +200,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
             result += [begin_spinbox, end_spinbox]
             # Add spinboxes to self.flattenings to look up later
             self.flattenings[dim] = (begin_spinbox, end_spinbox)
-            self.dimension_picker_layout.addWidget(QtGui.QLabel(dim))
+            self.dimension_picker_layout.addWidget(QLabel(dim))
             self.dimension_picker_layout.addWidget(slice_container)
         return result
 
@@ -223,7 +224,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
             return 0
         elif dataset == from_console_text:
             try:
-                return len(QtCore.QCoreApplication.instance().dict_of_vars[variable])
+                return len(QCoreApplication.instance().dict_of_vars[variable])
             except AttributeError:
                 return 0
         else:
@@ -252,7 +253,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
                 slices = [dim_slices[k] for k in sorted(dim_slices.keys())]
             else:
                 variable = str(self.variable_widget.currentText())
-                nc_obj = QtCore.QCoreApplication.instance().dict_of_datasets[dataset]
+                nc_obj = QCoreApplication.instance().dict_of_datasets[dataset]
                 slices = [dim_slices.get(k, slice(None)) for k in nc_obj.variables[variable].dimensions]
 
             var = var[slices].flatten()

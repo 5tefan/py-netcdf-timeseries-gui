@@ -1,7 +1,8 @@
 import re
 from string import ascii_lowercase
 
-from PyQt4 import QtGui, QtCore
+from PyQt5.QtWidgets import QWidget, QTabWidget, QTabBar, QLineEdit
+from PyQt5.QtCore import QMutex, QCoreApplication, pyqtSignal
 
 from pyntpg.dataset_tabs.dataset_tab import DatasetTab
 
@@ -10,17 +11,17 @@ from pyntpg.dataset_tabs.dataset_tab import DatasetTab
 """
 
 
-class DatasetTabs(QtGui.QTabWidget):
+class DatasetTabs(QTabWidget):
     #  Signal on which to emit a dict of dataset: nc_obj when any dataset updated
     def __init__(self):
         super(DatasetTabs, self).__init__()
-        self.setTabPosition(QtGui.QTabWidget.North)
+        self.setTabPosition(QTabWidget.North)
         self.setMaximumHeight(150)
         # Mutex used to protect from tab_changed firing
         # itself again when the "+" is clicked and we add new
         # tab and setCurrentIndex
         self.number_tabs_added = 0
-        self.mutex = QtCore.QMutex()
+        self.mutex = QMutex()
         self.setTabBar(DatasetTabBar())
         dataset_tab = DatasetTab(self)
         dataset_tab.received_dataset.connect(self.update_datasets)
@@ -28,10 +29,10 @@ class DatasetTabs(QtGui.QTabWidget):
 
         # Add the "+" tab and make sure it has no close button
         # make sure that the + tab has no close button
-        plus_tab = QtGui.QWidget()
+        plus_tab = QWidget()
         self.addTab(plus_tab, "+")
         index = self.indexOf(plus_tab)
-        self.tabBar().setTabButton(index, QtGui.QTabBar.RightSide, None)
+        self.tabBar().setTabButton(index, QTabBar.RightSide, None)
 
         self.currentChanged.connect(self.tab_changed)
         self.tabCloseRequested.connect(self.close_tab)
@@ -51,7 +52,7 @@ class DatasetTabs(QtGui.QTabWidget):
         if index == self.count() - 2:
             self.setCurrentIndex(index - 1)
         # Broadcast the remove event
-        QtCore.QCoreApplication.instance().remove_dataset(self.tabText(index))
+        QCoreApplication.instance().remove_dataset(self.tabText(index))
         to_remove = self.widget(index)
         self.removeTab(index)
         to_remove.deleteLater()
@@ -69,23 +70,23 @@ class DatasetTabs(QtGui.QTabWidget):
             if nc_obj is not None:
                 name = self.tabText(index)
                 result.update({name: nc_obj})
-        QtCore.QCoreApplication.instance().update_datasets(result)
+        QCoreApplication.instance().update_datasets(result)
 
 
-""" The QtGui.QTabBar controls the actual tabs
+""" The QTabBar controls the actual tabs
     in the tab bar. In here, we are setting the
     behavior for edit tab name on double click.
 """
 
 
-class DatasetTabBar(QtGui.QTabBar):
+class DatasetTabBar(QTabBar):
     # credits of http://stackoverflow.com/a/30269356
-    tab_renamed = QtCore.pyqtSignal()
+    tab_renamed = pyqtSignal()
     def __init__(self):
-        QtGui.QTabBar.__init__(self)
+        QTabBar.__init__(self)
         # Mutex to keep from editing another tab
         # while one is already being edited
-        self.mutex = QtCore.QMutex()
+        self.mutex = QMutex()
         self.setTabsClosable(True)
 
     def mouseDoubleClickEvent(self, event=None):
@@ -101,7 +102,7 @@ class DatasetTabBar(QtGui.QTabBar):
         rect = self.tabRect(tab_index)
         top_margin = 3
         left_margin = 6
-        self.__edit = QtGui.QLineEdit(self)
+        self.__edit = QLineEdit(self)
         self.__edit.show()
         self.__edit.move(rect.left() + left_margin, rect.top() + top_margin)
         self.__edit.resize(rect.width() - 2 * left_margin, rect.height() - 2 * top_margin)
@@ -116,6 +117,6 @@ class DatasetTabBar(QtGui.QTabBar):
         text = re.sub(r"[^A-Za-z1-9_]+", "", text).rstrip("_")
         self.setTabText(self.__edited_tab, text)
         # emit signal that tab name was changed so configured tabs can change
-        QtCore.QCoreApplication.instance().change_dataset_name(oldtext, text)
+        QCoreApplication.instance().change_dataset_name(oldtext, text)
         self.__edit.deleteLater()
         self.mutex.unlock()

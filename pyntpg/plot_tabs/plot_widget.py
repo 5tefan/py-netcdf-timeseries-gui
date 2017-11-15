@@ -1,16 +1,18 @@
-from PyQt4 import QtCore, QtGui
+from PyQt5.QtWidgets import QWidget, QVBoxLayout
+from PyQt5.QtCore import pyqtSignal
+
 from matplotlib.axes._axes import Axes
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
 
-class PlotWidget(QtGui.QWidget):
-    closing = QtCore.pyqtSignal(object)
+class PlotWidget(QWidget):
+    closing = pyqtSignal(object)
 
     def __init__(self):
         super(PlotWidget, self).__init__()
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QVBoxLayout()
         self.setLayout(self.layout)
 
         self.figure = Figure(dpi=self.physicalDpiY() * (2. / 3.), tight_layout=True)
@@ -74,7 +76,9 @@ def plot_lines(ax, lines):
             ax.xaxis.axis_date()
         if line["type"] in ["index", "datetime", "scatter"]:
             # make the plot for the basic types, these all use the ax.plot method
-            ax.plot([0], [0], **line_filtered)  # see http://stackoverflow.com/q/8979258
+            xdata = line_filtered.pop("xdata", [])
+            ydata = line_filtered.pop("ydata", [])
+            ax.plot(xdata, ydata, **line_filtered)  # see http://stackoverflow.com/q/8979258
         elif line["type"] == "spectrogram":
             # specific to the spectrogram plot, we need to plot with the pcolormesh method
 
