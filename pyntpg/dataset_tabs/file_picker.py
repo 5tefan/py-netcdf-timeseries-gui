@@ -6,7 +6,6 @@ from PyQt5.QtCore import pyqtSignal, Qt, QSize
 class FilePicker(QWidget):
     selected_files = pyqtSignal(list)
 
-    # TODO: Don't use nco concat if only import 1 file
     def __init__(self):
         super(FilePicker, self).__init__()
         self.layout = QVBoxLayout()
@@ -21,12 +20,14 @@ class FilePicker(QWidget):
         file_icon.setPixmap(self.style().standardIcon(QStyle.SP_DialogOpenButton).pixmap(10))
         self.buttons_layout.addWidget(file_icon)
         add_file = QPushButton("Add Files")
-        #add_file.setIcon(add_file.style().standardIcon(QStyle.SP_DialogOpenButton))
+        add_file.setIcon(add_file.style().standardIcon(QStyle.SP_DialogOpenButton))
+        add_file.setIconSize(QSize(10, 10))
         add_file.clicked.connect(self.add_file_clicked)
         self.buttons_layout.addWidget(add_file)
         #self.buttons_layout.addStretch()
         self.remove_file = QPushButton("Remove File")
-        #self.remove_file.setIcon(self.remove_file.style().standardIcon(QStyle.SP_DialogCloseButton))
+        self.remove_file.setIcon(self.remove_file.style().standardIcon(QStyle.SP_DialogCloseButton))
+        self.remove_file.setIconSize(QSize(10, 10))
         self.remove_file.clicked.connect(self.remove_file_clicked)
         self.remove_file.setVisible(False)
         self.buttons_layout.addWidget(self.remove_file)
@@ -81,9 +82,8 @@ class FilePicker(QWidget):
 
     def emit_file_list(self):
         # updated_file_list = [i.text() for i in self.filelist.findItems("", Qt.MatchContains)]
-        updated_file_list = [self.filelist.item(i).text() for i in xrange(self.filelist.count())]
-        print updated_file_list
-        self.selected_files.emit(updated_file_list)
+        updated_file_list = [self.filelist.item(i).text() for i in range(self.filelist.count())]
+        self.selected_files.emit(updated_file_list)  # empty list is ok
 
 
 

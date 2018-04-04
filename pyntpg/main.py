@@ -17,75 +17,11 @@ from pyntpg.analysis.ipython_console import IPythonConsole
 from pyntpg.plot_tabs.layout_picker import DimesnionChangeDialog
 import pyntpg.analysis as analysis
 
+import logging
+from pyntpg.datasets_container import DatasetsContainer
 
-class Application(QApplication):
-    """ The rationale for having two separate interfaces for netcdf datasets and
-    plottable variables from the console is that they are indeed completely independent
-    and only connected by the fact that they both show up in the same ComboBox to select
-    the dataset and hence it is the ComboBox's concern to keep things in order.
-    """
+logger = logging.getLogger(__name__)
 
-    # the dict of datasets
-    dict_of_datasets = {}
-    datasets_updated = pyqtSignal(dict)  # signal a completely new dict and emit it
-    dataset_name_changed = pyqtSignal(str, str)  # from, to
-    dataset_removed = pyqtSignal(str)
-
-    # separate interface for variables from the console
-    dict_of_vars = {}
-    console_vars_updated = pyqtSignal(dict)
-
-    def __init__(self, *args):
-        super(Application, self).__init__(*args)
-
-        # Use the plastique theme. Take our to default to system theme
-        self.setStyle(QStyleFactory.create("plastique"))
-
-        # Set the default font
-        font = QFont()
-        font.setFamily(font.defaultFamily())
-        self.setFont(font)
-
-        # Font metrics will give us the pixel height of text. Use that to set
-        # the max height of buttons on the interface
-        fm = QFontMetrics(font)
-        min_height = fm.height()
-        max_height = int(float(fm.height()) * 1.2)
-        self.setStyleSheet("QPushButton { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
-                           "QComboBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
-                           "QSpinBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
-                           "QDateTimeEdit { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
-                           % {"max_height": max_height, "min_height": min_height})
-
-    def update_datasets(self, datasets_dict=None):
-        """ Accept dicts of the datasets available from the tabs and emit
-        that information on the datasets_updated signal.
-
-        Can be called with no arguments to force the datasets_updated signal
-        to emit the current datasets, might be useful to be called if state
-        falls out of sync.
-
-        :param datasets_dict: dict containing { dataset: netcdf_obj } pairs
-        :return:
-        """
-        if datasets_dict is not None:
-            self.dict_of_datasets = datasets_dict
-        self.datasets_updated.emit(self.dict_of_datasets)
-
-    def change_dataset_name(self, from_str, to_str):
-        if from_str in self.dict_of_datasets.keys():
-            self.dataset_name_changed.emit(from_str, to_str)
-            self.dict_of_datasets.update({to_str: self.dict_of_datasets[from_str]})
-            del self.dict_of_datasets[from_str]  # rm old key
-
-    def remove_dataset(self, str_name):
-        if str_name in self.dict_of_datasets.keys():
-            self.dataset_removed.emit(str_name)
-            del self.dict_of_datasets[str_name]
-
-    def update_console_vars(self, var_dict):
-        self.dict_of_vars = var_dict
-        self.console_vars_updated.emit(var_dict)
 
 
 class MainWindow(QMainWindow):
@@ -187,6 +123,100 @@ class MainWindow(QMainWindow):
         self.ipython_wid.raise_()
 
 
+class Application(QApplication):
+    """ The rationale for having two separate interfaces for netcdf datasets and
+    plottable variables from the console is that they are indeed completely independent
+    and only connected by the fact that they both show up in the same ComboBox to select
+    the dataset and hence it is the ComboBox's concern to keep things in order.
+    """
+
+    # the dict of datasets
+    dict_of_datasets = {}
+    datasets_updated = pyqtSignal(dict)  # signal a completely new dict and emit it
+    dataset_name_changed = pyqtSignal(str, str)  # from, to
+    dataset_removed = pyqtSignal(str)
+
+    # separate interface for variables from the console
+    dict_of_vars = {}
+    console_vars_updated = pyqtSignal(dict)
+
+    def __init__(self, *args):
+        super(Application, self).__init__(*args)
+
+        # Use the plastique theme. Take our to default to system theme
+        self.setStyle(QStyleFactory.create("plastique"))
+
+        # Set the default font
+        font = QFont()
+        font.setFamily(font.defaultFamily())
+        self.setFont(font)
+
+        # Font metrics will give us the pixel height of text. Use that to set
+        # the max height of buttons on the interface
+        fm = QFontMetrics(font)
+        min_height = fm.height()
+        max_height = int(float(fm.height()) * 1.2)
+        self.setStyleSheet("QPushButton { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
+                           "QComboBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
+                           "QSpinBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
+                           "QDateTimeEdit { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
+                           % {"max_height": max_height, "min_height": min_height})
+
+        self.datasets = DatasetsContainer()
+        self.window = MainWindow()
+
+    def notify(self, receiver, event):
+        try:
+            return super(Application, self).notify(receiver, event)
+        except Exception as e:
+            logger.exception(e)
+        except:
+            logger.exception("Unknown Exception!")
+
+    def show(self):
+        """
+        Raises this widget to the top of the parent widget's stack. After this call the widget will be 
+        visually in front of any overlapping sibling widgets. 
+    
+        Note: When using activateWindow(), you can call this function to ensure that the window is stacked on top.
+        """
+        self.window.show()
+        self.window.activateWindow()
+        self.window.raise_()
+
+    # TODO remove these below
+    def update_datasets(self, datasets_dict=None):
+        """ Accept dicts of the datasets available from the tabs and emit
+        that information on the datasets_updated signal.
+
+        Can be called with no arguments to force the datasets_updated signal
+        to emit the current datasets, might be useful to be called if state
+        falls out of sync.
+
+        :param datasets_dict: dict containing { dataset: netcdf_obj } pairs
+        :return:
+        """
+        if datasets_dict is not None:
+            self.dict_of_datasets = datasets_dict
+        self.datasets_updated.emit(self.dict_of_datasets)
+
+    def change_dataset_name(self, from_str, to_str):
+        if from_str in self.dict_of_datasets.keys():
+            self.dataset_name_changed.emit(from_str, to_str)
+            self.dict_of_datasets.update({to_str: self.dict_of_datasets[from_str]})
+            del self.dict_of_datasets[from_str]  # rm old key
+
+    def remove_dataset(self, str_name):
+        if str_name in self.dict_of_datasets.keys():
+            self.dataset_removed.emit(str_name)
+            del self.dict_of_datasets[str_name]
+
+    def update_console_vars(self, var_dict):
+        self.dict_of_vars = var_dict
+        self.console_vars_updated.emit(var_dict)
+
+
+
 # from http://pyqt.sourceforge.net/Docs/PyQt5/gotchas.html#crashes-on-exit
 # Another common pattern (and one that is required when using setuptool
 # entry points) is that the above code in placed in a separate function,
@@ -198,12 +228,14 @@ app = None
 def main():
     global app
     app = Application(sys.argv)
-
-    window = MainWindow()
-    window.show()
-
+    app.show()
     exit(app.exec_())
 
 
 if __name__ == "__main__":
+
+    console = logging.StreamHandler(sys.stderr)
+    console.setLevel(logging.DEBUG)
+    logging.getLogger().addHandler(console)
+
     main()
