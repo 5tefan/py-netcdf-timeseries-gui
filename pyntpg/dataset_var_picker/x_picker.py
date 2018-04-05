@@ -98,7 +98,6 @@ class XPicker(DatasetVarPicker):
         self.type_dispatcher()
         self.setDisabled(True)
 
-
     def get_type(self):
         """ Helper function to get the mode or type (index, datetime, scatter) selected.
         :return: string name to type selected
@@ -119,7 +118,6 @@ class XPicker(DatasetVarPicker):
         axis_type = str(self.toggle_type.currentText())
         # self.types is dict of function objects, get right one and call
         self.types.get(axis_type, self.index_activated)()
-        self.update_variables()
 
     def index_activated(self):
         """ Puts the UI into the correct state to plot a variable vs it's array index

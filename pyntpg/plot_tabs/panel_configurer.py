@@ -1,21 +1,15 @@
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QSizePolicy, QVBoxLayout, QFormLayout
-from PyQt5.QtWidgets import QPushButton, QComboBox, QSpinBox, QColorDialog
-from PyQt5.QtCore import pyqtSignal, QCoreApplication, QMutex, QEvent
-from PyQt5.Qt import QColor
-
 import random
-from datetime import datetime
 
-import netCDF4 as nc
 import numpy as np
-from netCDF4._netCDF4 import Dataset, Variable, _dateparse
-
-from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker
-from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker, from_console_text
-from pyntpg.plot_tabs.plot_widget import PlotWidget, plot_lines
+from PyQt5.Qt import QColor
+from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtWidgets import QPushButton, QComboBox, QSpinBox, QColorDialog
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QSizePolicy, QVBoxLayout, QFormLayout
 
 # X picker new for testing
 from pyntpg.dataset_var_picker.x_picker import XPicker
+from pyntpg.dataset_var_picker.y_picker import YPicker
+from pyntpg.plot_tabs.plot_widget import PlotWidget, plot_lines
 
 
 class PanelConfigurer(QWidget):
@@ -41,7 +35,7 @@ class PanelConfigurer(QWidget):
         self.y_picker.y_picked.connect(self.x_picker.y_picked)
         # update the datasets to trigger x_picker not disabled,
         # must be after the self.y_picker.y_picked is connected
-        self.y_picker.update_variables()
+        # self.y_picker.update_variables()  # TODO: remove
         self.layout.addWidget(self.x_picker)
 
         # widget in charge of selecting the display style
@@ -117,64 +111,6 @@ class PanelConfigurer(QWidget):
 
         return base
 
-
-class YPicker(FlatDatasetVarPicker):
-
-    y_picked = pyqtSignal(int, dict)
-
-    def __init__(self, title="y axis"):
-        super(YPicker, self).__init__(title=title)
-        self.variable_widget.currentIndexChanged.connect(self.check_dims)
-
-    def check_dims(self, var_index):
-        super(YPicker, self).check_dims(var_index)
-        self.emit_y_picked()
-
-    def pick_flatten_dims_netcdf(self, nc_obj, variable):
-        [s.valueChanged.connect(self.emit_y_picked) for s in
-         super(YPicker, self).pick_flatten_dims_netcdf(nc_obj, variable)]
-
-    def pick_flatten_dims_listlike(self, listlike):
-        [s.valueChanged.connect(self.emit_y_picked) for s in
-         super(YPicker, self).pick_flatten_dims_listlike(listlike)]
-
-    def emit_y_picked(self):
-        """ Calculate the size of the variable selected, taking
-        into account flattening and slicing, and emit it on the
-        self.y_picked signal.
-        :return: None
-        """
-        print "YPicker emit_y_picked %s" % self.get_var_len()
-        self.y_picked.emit(self.get_var_len(), self.get_dim_slices())
-
-    def show_var_condition(self, var, nc_obj=None):
-        if hasattr(var, "units"):
-            try:
-                _dateparse(var.units)
-                return False
-            except:
-                pass
-        return super(YPicker, self).show_var_condition(var=var, nc_obj=nc_obj)
-
-    def get_config(self):
-        """ Calling self.get_config will collect all the options
-        configured through the UI into a dict for plotting.
-        :return: dict configuration object specifying x-axis
-        """
-        dataset = str(self.dataset_widget.currentText())
-        variable = str(self.variable_widget.currentText())
-        if variable and dataset:
-            result = {
-                "ydataset": dataset,
-                "yvariable": variable
-            }
-            if dataset != from_console_text:
-                nc_var = QCoreApplication.instance().dict_of_datasets[dataset].variables[variable]
-                if hasattr(nc_var, "units"):
-                    result.update({"yunits": nc_var.units})
-
-            result["ydata"] = self.get_values()
-            return result
 
 class MiscControls(QWidget):
     color_picked = None

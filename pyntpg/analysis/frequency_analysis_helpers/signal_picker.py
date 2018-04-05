@@ -1,6 +1,6 @@
 from PyQt5.QtCore import pyqtSignal
 
-from pyntpg.plot_tabs.panel_configurer import YPicker
+from pyntpg.dataset_var_picker.y_picker import YPicker
 
 
 class SignalPicker(YPicker):

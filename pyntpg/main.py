@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
         self.main_widget_layout.addWidget(self.plot_tabs)
 
         # Create the IPython qwidget
-        self.ipython_wid = IPythonConsole()
+        self.ipython = IPythonConsole()
 
         self.wizard = None
 
@@ -119,8 +119,8 @@ class MainWindow(QMainWindow):
         """ Slot for the menu option to show and/or raise the ipython widget.
         :return: None
         """
-        self.ipython_wid.show()
-        self.ipython_wid.raise_()
+        self.ipython.show()
+        self.ipython.raise_()
 
 
 class Application(QApplication):
@@ -129,17 +129,6 @@ class Application(QApplication):
     and only connected by the fact that they both show up in the same ComboBox to select
     the dataset and hence it is the ComboBox's concern to keep things in order.
     """
-
-    # the dict of datasets
-    dict_of_datasets = {}
-    datasets_updated = pyqtSignal(dict)  # signal a completely new dict and emit it
-    dataset_name_changed = pyqtSignal(str, str)  # from, to
-    dataset_removed = pyqtSignal(str)
-
-    # separate interface for variables from the console
-    dict_of_vars = {}
-    console_vars_updated = pyqtSignal(dict)
-
     def __init__(self, *args):
         super(Application, self).__init__(*args)
 
@@ -183,38 +172,6 @@ class Application(QApplication):
         self.window.show()
         self.window.activateWindow()
         self.window.raise_()
-
-    # TODO remove these below
-    def update_datasets(self, datasets_dict=None):
-        """ Accept dicts of the datasets available from the tabs and emit
-        that information on the datasets_updated signal.
-
-        Can be called with no arguments to force the datasets_updated signal
-        to emit the current datasets, might be useful to be called if state
-        falls out of sync.
-
-        :param datasets_dict: dict containing { dataset: netcdf_obj } pairs
-        :return:
-        """
-        if datasets_dict is not None:
-            self.dict_of_datasets = datasets_dict
-        self.datasets_updated.emit(self.dict_of_datasets)
-
-    def change_dataset_name(self, from_str, to_str):
-        if from_str in self.dict_of_datasets.keys():
-            self.dataset_name_changed.emit(from_str, to_str)
-            self.dict_of_datasets.update({to_str: self.dict_of_datasets[from_str]})
-            del self.dict_of_datasets[from_str]  # rm old key
-
-    def remove_dataset(self, str_name):
-        if str_name in self.dict_of_datasets.keys():
-            self.dataset_removed.emit(str_name)
-            del self.dict_of_datasets[str_name]
-
-    def update_console_vars(self, var_dict):
-        self.dict_of_vars = var_dict
-        self.console_vars_updated.emit(var_dict)
-
 
 
 # from http://pyqt.sourceforge.net/Docs/PyQt5/gotchas.html#crashes-on-exit

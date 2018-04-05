@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QWidget, QTabWidget, QTabBar, QLineEdit
 from PyQt5.QtCore import QMutex, QCoreApplication
 
 from pyntpg.dataset_tabs.dataset_tab import DatasetTab
+from pyntpg.datasets_container import DatasetsContainer
 
 
 class DatasetTabs(QTabWidget):
@@ -36,7 +37,7 @@ class DatasetTabs(QTabWidget):
         self.currentChanged.connect(self.tab_changed)
         self.tabCloseRequested.connect(self.close_tab)
 
-        self.datasets = QCoreApplication.instance().datasets
+        self.datasets = QCoreApplication.instance().datasets  # type: DatasetsContainer
 
     def tab_changed(self, index):
         maxindex = self.count() - 1

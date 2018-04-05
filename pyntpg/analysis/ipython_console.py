@@ -1,11 +1,13 @@
 import datetime
 
 from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import QCoreApplication
+from PyQt5.QtCore import QCoreApplication, pyqtSlot
 import IPython
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from traitlets.config.configurable import MultipleInstanceError
+
+from pyntpg.datasets_container import DatasetsContainer
 
 
 class IPythonConsole(RichJupyterWidget):
@@ -39,19 +41,29 @@ class IPythonConsole(RichJupyterWidget):
         self.kernel_manager = kernel_manager
         self.kernel_client = kernel_client
 
+        self.datasets = QCoreApplication.instance().datasets  # type: DatasetsContainer
         # On new dict, push to console
-        QCoreApplication.instance().datasets_updated.connect(self.add_vars)
+        self.datasets.sig_opened.connect(self.add_dataset)
+        self.datasets.sig_closed.connect(self.rm_dataset)
+        self.datasets.sig_rename.connect(self.rename_dataset)
+        # QCoreApplication.instance().datasets_updated.connect(self.add_vars)
         # On varname change, change vars in console
-        QCoreApplication.instance().dataset_name_changed.connect(self.rename_var)
+        # QCoreApplication.instance().dataset_name_changed.connect(self.rename_var)
 
-    def add_vars(self, dict_of_vars, hidden=True):
-        self.kernel.shell.push(dict_of_vars)
-        # Also update user_ns_hidden with dict of vars so that dict of vars doesn't
-        # show up as user defined variable if hidden is set
-        if hidden:
-            self.kernel.shell.user_ns_hidden.update(dict_of_vars)
-        else:
-            self.emit_user_vars()
+    @pyqtSlot(str, str)
+    def rename_dataset(self, from_str, to_str):
+        self.rm_dataset(from_str)
+        self.add_dataset(to_str)
+
+    @pyqtSlot(str)
+    def add_dataset(self, name):
+        self.kernel.shell.push({name: self.datasets.datasets[name]})
+
+    @pyqtSlot(str)
+    def rm_dataset(self, name):
+        # wow, took absolutely forever to find this:
+        # https://github.com/ipython/ipython/blob/9398e32c409c7d110d4cac2d2eff787c82b03f03/IPython/core/interactiveshell.py#L1353
+        self.kernel.shell.drop_by_id({name: self.kernel.shell.user_ns.get(name)})
 
     def emit_user_vars(self):
         """
@@ -65,7 +77,7 @@ class IPythonConsole(RichJupyterWidget):
         dict_of_vars = {var_name: ipy.user_ns[var_name]
                         for var_name in var_names
                         if self.is_plotable(self.kernel.shell.user_ns[var_name])}
-        QCoreApplication.instance().update_console_vars(dict_of_vars)
+        # QCoreApplication.instance().update_console_vars(dict_of_vars)
 
     def is_plotable(self, var_obj):
         """ Not all variables from the console will be eligible to plot,

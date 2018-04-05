@@ -52,7 +52,6 @@ class FlatDatasetVarPicker(DatasetVarPicker):
         """
         # reset everything to no flattening needed, in case we don't need to do any
         # and then add back all the flattening stuff if we do end up needing flattening
-        print "check_dims called"
 
         # delete anything that was in self.dimension_picker_layout previously
         for i in reversed(range(self.dimension_picker_layout.count())):
@@ -66,34 +65,19 @@ class FlatDatasetVarPicker(DatasetVarPicker):
         dataset = str(self.dataset_widget.currentText())
         variable = str(self.variable_widget.currentText())
 
-        if not dataset or not variable:
-            return None
-        elif dataset == from_console_text:
-            # deal with a multidimensional variable coming from console, or elsewhere
-            try:
-                listlike = QCoreApplication.instance().dict_of_vars[variable]
-            except AttributeError:
-                return None  # bail if can't find the variable
+        try:
+            nc_obj = QCoreApplication.instance().datasets.datasets[dataset]
+        except AttributeError:
+            return None  # bail if can't find the netcdf object
 
-            # try to figure out if it is multidimensional
-            if isinstance(listlike[0], (list, np.ndarray)):
-                self.needs_flatten = True
-                self.pick_flatten_dims_listlike(listlike)
+        # seems to be a safe assumption that netcdf variable objects
+        # have a dimensions attribute, required right?
+        dim_len = len(nc_obj.variables[variable].dimensions)
 
-        else:  # otherwise this should be a Netcdf object
-            try:
-                nc_obj = QCoreApplication.instance().dict_of_datasets[dataset]
-            except AttributeError:
-                return None  # bail if can't find the netcdf object
-
-            # seems to be a safe assumption that netcdf variable objects
-            # have a dimensions attribute, required right?
-            dim_len = len(nc_obj.variables[variable].dimensions)
-
-            # if not flat, do the flattening
-            if dim_len > 1:
-                self.needs_flatten = True
-                self.pick_flatten_dims_netcdf(nc_obj, variable)
+        # if not flat, do the flattening
+        if dim_len > 1:
+            self.needs_flatten = True
+            self.pick_flatten_dims_netcdf(nc_obj, variable)
 
         if self.needs_flatten:
             # if the flattening needs to happen, show the widget!
@@ -217,24 +201,13 @@ class FlatDatasetVarPicker(DatasetVarPicker):
         return self.make_flat(values)
 
     def get_var_len(self):
-        dataset = str(self.dataset_widget.currentText())
-        variable = str(self.variable_widget.currentText())
-
-        if not dataset or not variable:
-            return 0
-        elif dataset == from_console_text:
-            try:
-                return len(QCoreApplication.instance().dict_of_vars[variable])
-            except AttributeError:
-                return 0
+        if self.needs_flatten:
+            product = 1
+            for dim in self.get_dim_slices().values():
+                product *= dim.stop - dim.start
+            return product
         else:
-            if self.needs_flatten:
-                product = 1
-                for dim in self.get_dim_slices().values():
-                    product *= dim.stop - dim.start
-                return product
-            else:
-                return self.get_ncvar().size
+            return self.get_ncvar().size
 
 
     def make_flat(self, var):
@@ -245,19 +218,10 @@ class FlatDatasetVarPicker(DatasetVarPicker):
         """
         if self.needs_flatten:
             var = np.array(var)
-
-            dataset = str(self.dataset_widget.currentText())
-
             dim_slices = self.get_dim_slices()
-            if dataset == from_console_text:
-                slices = [dim_slices[k] for k in sorted(dim_slices.keys())]
-            else:
-                variable = str(self.variable_widget.currentText())
-                nc_obj = QCoreApplication.instance().dict_of_datasets[dataset]
-                slices = [dim_slices.get(k, slice(None)) for k in nc_obj.variables[variable].dimensions]
-
+            ncvar = self.get_ncvar()
+            slices = [dim_slices.get(k, slice(None)) for k in ncvar.dimensions]
             var = var[slices].flatten()
-
         return var
 
     def get_dim_slices(self):

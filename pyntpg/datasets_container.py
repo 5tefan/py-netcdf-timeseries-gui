@@ -11,7 +11,6 @@ class DatasetsContainer(QObject):
     def __init__(self):
         super(DatasetsContainer, self).__init__()
         self.datasets = {}  # datasets opened from netcdf files
-        self.console = {}   # variables created from the ipython console
 
     @pyqtSlot(str, str)
     def open(self, name, path):
@@ -36,3 +35,12 @@ class DatasetsContainer(QObject):
             self.datasets.pop(name)
             self.sig_closed.emit(name)
 
+    def list_datasets(self):
+        """ Get a list of the datasets available. """
+        names = self.datasets.keys()
+        return names
+
+    def list_variables(self, dataset):
+        if dataset in self.datasets.keys():
+            # otherwise, it's a netcdf dataset, open and list the keys
+            return self.datasets[dataset].variables.keys()
