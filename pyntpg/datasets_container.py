@@ -44,3 +44,5 @@ class DatasetsContainer(QObject):
         if dataset in self.datasets.keys():
             # otherwise, it's a netcdf dataset, open and list the keys
             return self.datasets[dataset].variables.keys()
+
+

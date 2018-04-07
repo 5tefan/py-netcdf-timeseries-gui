@@ -2,7 +2,7 @@ import numpy as np
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSpinBox, QLabel
 from PyQt5.QtCore import QCoreApplication
 
-from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, from_console_text
+from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, CONSOLE_TEXT
 from pyntpg.vertical_scroll_area import VerticalScrollArea
 
 

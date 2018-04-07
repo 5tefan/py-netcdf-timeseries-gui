@@ -28,8 +28,11 @@ class MainWindow(QMainWindow):
     """ The main window of the QT application. It contains eg. the file menu, etc.
     """
 
-    def __init__(self):
-        super(MainWindow, self).__init__()
+    def __init__(self, *args, **kwargs):
+        # Expect the IPython widget to be passed in as an argument
+        self.ipython = kwargs.pop("ipython", None)
+
+        super(MainWindow, self).__init__(*args, **kwargs)
         self.setWindowTitle("pyntpg")
         self.setMinimumSize(500, 500)
 
@@ -49,9 +52,6 @@ class MainWindow(QMainWindow):
         # Create the plot tabs
         self.plot_tabs = PlotTabs()
         self.main_widget_layout.addWidget(self.plot_tabs)
-
-        # Create the IPython qwidget
-        self.ipython = IPythonConsole()
 
         self.wizard = None
 
@@ -152,7 +152,8 @@ class Application(QApplication):
                            % {"max_height": max_height, "min_height": min_height})
 
         self.datasets = DatasetsContainer()
-        self.window = MainWindow()
+        self.ipython = IPythonConsole()
+        self.window = MainWindow(ipython=self.ipython)
 
     def notify(self, receiver, event):
         try:

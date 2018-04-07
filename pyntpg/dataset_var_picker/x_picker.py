@@ -1,11 +1,12 @@
-from PyQt5.QtWidgets import QWidget, QComboBox, QDateTimeEdit, QFormLayout, QSpinBox, QVBoxLayout
+from PyQt5.QtWidgets import QWidget, QComboBox, QDateTimeEdit, QFormLayout, QSpinBox
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
 from PyQt5.QtCore import pyqtSlot
 import numpy as np
 import netCDF4 as nc
 from netCDF4._netCDF4 import _dateparse
 from datetime import datetime
 
-from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, from_console_text
+from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, CONSOLE_TEXT
 from pyntpg.vertical_scroll_area import VerticalScrollArea
 
 

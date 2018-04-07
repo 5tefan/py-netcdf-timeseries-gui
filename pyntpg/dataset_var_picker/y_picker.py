@@ -1,7 +1,7 @@
 from PyQt5.QtCore import pyqtSignal, QCoreApplication
 from netCDF4._netCDF4 import _dateparse
 
-from pyntpg.dataset_var_picker.dataset_var_picker import from_console_text
+from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
 from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker
 
 
@@ -54,8 +54,10 @@ class YPicker(FlatDatasetVarPicker):
                 "ydataset": dataset,
                 "yvariable": variable
             }
-            nc_var = self.get_ncvar()
-            if hasattr(nc_var, "units"):
-                result.update({"yunits": nc_var.units})
+            if dataset != CONSOLE_TEXT:
+                # only try to get variable and units if it's not from CONSOLE_TEXT
+                nc_var = self.get_ncvar()
+                if hasattr(nc_var, "units"):
+                    result.update({"yunits": nc_var.units})
             result["ydata"] = self.get_values()
             return result
