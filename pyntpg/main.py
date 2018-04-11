@@ -4,7 +4,7 @@ import numpy as np
 
 # Qt Imports
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStyleFactory, QShortcut, QWidget
-from PyQt5.QtWidgets import QVBoxLayout, QMenu, QInputDialog
+from PyQt5.QtWidgets import QVBoxLayout, QMenu, QInputDialog, QSplitter
 from PyQt5.QtGui import QFont, QFontMetrics
 from PyQt5.QtCore import QObject, pyqtSignal
 from PyQt5.QtGui import QKeySequence
@@ -42,18 +42,16 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+W"), self, QApplication.quit)
 
         # Set up the central widget and associated layout
-        main_widget = QWidget()
-        self.main_widget_layout = QVBoxLayout()
-        main_widget.setLayout(self.main_widget_layout)
-        self.setCentralWidget(main_widget)
-
+        main_widget = QSplitter(self)
+        main_widget.setOrientation(Qt.Vertical)
         # Create the dataset tabs
         self.dataset_tabs = DatasetTabs()
-        self.main_widget_layout.addWidget(self.dataset_tabs)
-
+        main_widget.addWidget(self.dataset_tabs)
         # Create the plot tabs
         self.plot_tabs = PlotTabs()
-        self.main_widget_layout.addWidget(self.plot_tabs)
+        main_widget.addWidget(self.plot_tabs)
+
+        self.setCentralWidget(main_widget)
 
         self.wizard = None
 
