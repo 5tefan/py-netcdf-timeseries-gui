@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QWidget, QFormLayout, QSpinBox
 from PyQt5.QtCore import pyqtSlot, QMutex
 from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
+import numpy as np
 
 class IndexPicker(QWidget):
 
@@ -14,10 +15,13 @@ class IndexPicker(QWidget):
         self.start_index = QSpinBox()
         self.start_index.setMinimum(0)
         self.layout.addRow("start index", self.start_index)
+        self.start_index.setDisabled(True)
 
         self.end_index = QSpinBox()
         self.end_index.setMinimum(1)
         self.layout.addRow("stop index", self.end_index)
+        self.end_index.setDisabled(True)
+        # remove index selection ability to get around weird masking workaround in plotting.
 
         self.mutex = QMutex()
 
@@ -39,5 +43,11 @@ class IndexPicker(QWidget):
     def accept_target_len(self, val):
         self.end_index.setMaximum(val)
         self.end_index.setValue(val)
+
+    def get_config(self):
+        return {
+            "type": "index",
+            "data": np.arange(self.end_index.maximum())
+        }
 
 

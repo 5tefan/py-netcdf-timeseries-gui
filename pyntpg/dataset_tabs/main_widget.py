@@ -16,7 +16,8 @@ class DatasetTabs(QTabWidget):
     def __init__(self):
         super(DatasetTabs, self).__init__()
         self.setTabPosition(QTabWidget.North)
-        self.setMaximumHeight(150)
+        self.setMinimumHeight(150)
+        self.setMaximumHeight(300)
         # Mutex used to protect from tab_changed firing
         # itself again when the "+" is clicked and we add new
         # tab and setCurrentIndex

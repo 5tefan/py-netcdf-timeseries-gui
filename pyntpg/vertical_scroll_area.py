@@ -1,6 +1,7 @@
 from PyQt5.QtWidgets import QScrollArea, QFrame
 from PyQt5.QtCore import Qt, QEvent
 
+
 class VerticalScrollArea(QScrollArea):
     def __init__(self, widget=None):
         super(VerticalScrollArea, self).__init__()
@@ -10,7 +11,6 @@ class VerticalScrollArea(QScrollArea):
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
         if widget:
-            print "hello, with widget %s" % widget
             self.setWidget(widget)
 
     def eventFilter(self, o, e):

@@ -22,6 +22,9 @@ def datetime_units(units):
 class DatetimePicker(DatasetVarPicker):
 
     def __init__(self, *args, **kwargs):
+        self.slices = OrderedDict()
+        self.target_len = None
+
         super(DatetimePicker, self).__init__(*args, **kwargs)
 
         self.date_range_container = QWidget()
@@ -37,10 +40,9 @@ class DatetimePicker(DatasetVarPicker):
         self.end_time.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
         self.date_range_layout.addRow("end", self.end_time)
 
-        self.variable_widget.currentIndexChanged[str].connect(self.variable_selected)
+        # if self.dataset_widget.currentText():
 
-        self.slices = OrderedDict()
-        self.target_len = None
+        self.variable_widget.currentIndexChanged[str].connect(self.variable_selected)
 
     @pyqtSlot(int)
     def accept_target_len(self, val):
@@ -54,7 +56,11 @@ class DatetimePicker(DatasetVarPicker):
     @pyqtSlot(str)
     def variable_selected(self, variable):
         """ Once variable selected, must set the min and max datetimes. """
-        num_dims = len(self.get_original_shape())
+        dataset = self.dataset_widget.currentText()
+        if not dataset or not variable:
+            return  # don't follow through for changed to nothing
+
+        num_dims = len(self.get_original_shape(dataset, variable))
         bounds = super(DatetimePicker, self).get_data(oslice=[[0, -1] for _ in range(num_dims)])
 
         if not isinstance(bounds.item(0), datetime):

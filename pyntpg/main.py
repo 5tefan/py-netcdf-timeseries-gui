@@ -1,5 +1,6 @@
 import inspect
 import sys
+import numpy as np
 
 # Qt Imports
 from PyQt5.QtWidgets import QApplication, QMainWindow, QStyleFactory, QShortcut, QWidget
@@ -15,6 +16,7 @@ from pyntpg.plot_tabs.main_widget import PlotTabs
 from pyntpg.plot_tabs.panel_configurer import PanelConfigurer
 from pyntpg.analysis.ipython_console import IPythonConsole
 from pyntpg.plot_tabs.layout_picker import DimesnionChangeDialog
+from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
 import pyntpg.analysis as analysis
 
 import logging
@@ -37,7 +39,7 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(500, 500)
 
         # Shortcuts
-        QShortcut(QKeySequence("Ctrl+W"), self, self.close)
+        QShortcut(QKeySequence("Ctrl+W"), self, QApplication.quit)
 
         # Set up the central widget and associated layout
         main_widget = QWidget()
@@ -173,6 +175,21 @@ class Application(QApplication):
         self.window.show()
         self.window.activateWindow()
         self.window.raise_()
+
+    def get_data(self, dataset, variable, oslice=slice(None)):
+        """ Get the list of values specified by the dataset + variable.
+
+        Call this method to evaluate the selection specified by the combination
+        of the dataset and variable selections, flattened if necessary.
+
+        :param oslice: Optional slice to apply retrieving data
+        :return: List of values
+        """
+        # TODO: is this thread safe?
+        if dataset == CONSOLE_TEXT:
+            return np.array(self.ipython.get_var_value(variable))[oslice]
+        else:
+            return self.datasets.datasets[dataset].variables[variable][oslice]
 
 
 # from http://pyqt.sourceforge.net/Docs/PyQt5/gotchas.html#crashes-on-exit

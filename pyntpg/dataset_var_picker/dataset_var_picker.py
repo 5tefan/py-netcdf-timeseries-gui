@@ -172,14 +172,8 @@ class DatasetVarPicker(QWidget, object):
         :param oslice: Optional slice to apply retrieving data
         :return: List of values
         """
-        # TODO: general, do slicing before getting data!!!
-        # ^ can be a gradual change, but will be important
-        # for handling larger datasets
         dataset, variable = self.selected()
-        if dataset == CONSOLE_TEXT:
-            return np.array(self.ipython.get_var_value(variable))[oslice]
-        else:
-            return self.datasets.datasets[dataset].variables[variable][oslice]
+        return QCoreApplication.instance().get_data(dataset, variable, oslice)
 
     def get_original_shape(self, dataset=None, variable=None):
         """ Get the shape of the actual variable selected.
@@ -188,6 +182,9 @@ class DatasetVarPicker(QWidget, object):
         if dataset is None and variable is None:
             # if arguments are none, use the current selected.
             dataset, variable = self.selected()
+
+        if not dataset or not variable:
+            return OrderedDict()
 
         if dataset == CONSOLE_TEXT:
             shape = np.shape(self.ipython.get_var_value(variable))
@@ -209,6 +206,21 @@ class DatasetVarPicker(QWidget, object):
             names = self.datasets.datasets[dataset].variables[variable].dimensions
 
         return OrderedDict(zip(names, shape))
+
+    def get_config(self):
+        dataset, variable = self.selected()
+        ncvar = self.get_ncvar()
+        if ncvar is not None and hasattr(ncvar, "units"):
+            units = ncvar.units
+        else:
+            units = ""
+
+        return {
+            "dataset": dataset,
+            "variable": variable,
+            "data": self.get_data(),
+            "units": units
+        }
 
 
 

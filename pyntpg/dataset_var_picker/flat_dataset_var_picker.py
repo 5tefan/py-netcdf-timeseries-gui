@@ -105,8 +105,7 @@ class SliceContainer(QWidget):
     def emit_slices(self):
         self.sig_slices.emit(OrderedDict([(k, slice(a.value(), b.value())) for k, (a, b) in self.spinboxes.items()]))
 
-
-
+# TODO: combine these two classes
 class DimensionFlattenPicker(QWidget):
 
     sig_slices = pyqtSignal(OrderedDict)  # list of the dimension slices, pass through from SliceContainer
@@ -147,9 +146,10 @@ class DimensionFlattenPicker(QWidget):
 
         self.shape = shape
         enable_flattening = len(shape) > 1
+        allow_unflattened = len(shape) < 3  # from matplotlib: x and y can be no greater than 2-D
 
         self.slice_container.setEnabled(enable_flattening)
-        self.checkbox_flatten.setEnabled(enable_flattening)
+        self.checkbox_flatten.setEnabled(enable_flattening and allow_unflattened)
         self.checkbox_flatten.setChecked(enable_flattening)
         self.slice_container.configure_dimensions(OrderedDict(zip(names, shape)))
 
@@ -196,14 +196,18 @@ class FlatDatasetVarPicker(DatasetVarPicker):
 
     @pyqtSlot(OrderedDict)
     def accept_slice_selection(self, slices=OrderedDict()):
-        print "received slices: %s" % slices
         self.slices = slices
 
         length = np.prod([s.stop - s.start for s in self.slices.values()])
         self.sig_anticipated_length.emit(length)
 
     def get_data(self, _=None):
-        return super(FlatDatasetVarPicker, self).get_data(oslice=self.slices)
+        dataset, variable = self.selected()
+        data = QCoreApplication.instance().get_data(dataset, variable, oslice=self.slices.values())
+        if len(self.slices) > 1:
+            return data.flatten()
+        else:
+            return data
 
 
 
