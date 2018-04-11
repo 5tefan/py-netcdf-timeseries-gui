@@ -7,8 +7,8 @@ from PyQt5.QtWidgets import QPushButton, QComboBox, QSpinBox, QColorDialog
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QSizePolicy, QVBoxLayout, QFormLayout
 
 # X picker new for testing
-from pyntpg.dataset_var_picker.x_picker import XPicker
-from pyntpg.dataset_var_picker.y_picker import YPicker
+from pyntpg.dataset_var_picker.x_picker.x_picker import XPicker
+from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker
 from pyntpg.plot_tabs.plot_widget import PlotWidget, plot_lines
 
 
@@ -19,20 +19,21 @@ class PanelConfigurer(QWidget):
     signal_new_config = pyqtSignal(dict)  # Signal to the ListConfigured
     preview_decimation = 3  # factor for decimation on the preview
 
-    def __init__(self):
-        QWidget.__init__(self)
+    def __init__(self, *args, **kwargs):
+        super(PanelConfigurer, self).__init__(*args, **kwargs)
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
         self.setMinimumHeight(200)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
 
         # widget in charge of picking variable to plot as time series
-        self.y_picker = YPicker()
+        self.y_picker = FlatDatasetVarPicker(title="y-axis")
         self.layout.addWidget(self.y_picker)
 
         # widget in charge of picking the date and range
         self.x_picker = XPicker()
-        self.y_picker.y_picked.connect(self.x_picker.y_picked)
+        self.y_picker.sig_anticipated_length.connect(self.x_picker.sig_target_length)
+        self.y_picker.sig_slices.connect(self.x_picker.sig_slices)
         # update the datasets to trigger x_picker not disabled,
         # must be after the self.y_picker.y_picked is connected
         # self.y_picker.update_variables()  # TODO: remove

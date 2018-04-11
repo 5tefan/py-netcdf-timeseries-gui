@@ -47,9 +47,13 @@ class NcinfoPreview(QWidget):
         :return: None
         """
         if isinstance(netcdf_filepath, basestring) and os.path.exists(netcdf_filepath):
-            self.textbox.setPlainText(self.make_nc_preview(nc.Dataset(netcdf_filepath)))
+            try:
+                text = self.make_nc_preview(nc.Dataset(netcdf_filepath))
+            except IOError as e:
+                text = repr(e)
+            self.textbox.setPlainText(text)
         else:
-            self.textbox.setPlainText("File not found! %s" % netcdf_filepath)
+            self.textbox.setPlainText("Select file(s)! %s" % netcdf_filepath)
         self.progress.setVisible(False)
 
     @staticmethod

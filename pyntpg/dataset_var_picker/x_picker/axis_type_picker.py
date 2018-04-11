@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import QWidget, QComboBox, QDateTimeEdit, QFormLayout, QSpinBox
-from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout
+from PyQt5.QtWidgets import QVBoxLayout, QHBoxLayout, QStackedLayout
 from PyQt5.QtCore import pyqtSlot
 import numpy as np
 import netCDF4 as nc
@@ -9,6 +9,10 @@ from datetime import datetime
 from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, CONSOLE_TEXT
 from pyntpg.vertical_scroll_area import VerticalScrollArea
 
+
+class AxisTypePicker(QWidget):
+    def __init__(self, *args, **kwargs):
+        super(AxisTypePicker, self).__init__(*args, **kwargs)
 
 
 class XPicker(DatasetVarPicker):
@@ -219,10 +223,10 @@ class XPicker(DatasetVarPicker):
         if axis_type == "datetime":
             # for a datetime axis, try to parse the beginning and end date represented and configure
             # the range selection widgets.
-            first_datenum = super(XPicker, self).get_values(oslice=slice(0,1))
-            last_datenum = super(XPicker, self).get_values(oslice=slice(-1,None))
+            first_datenum = super(XPicker, self).get_data(oslice=slice(0, 1))
+            last_datenum = super(XPicker, self).get_data(oslice=slice(-1, None))
             if len(first_datenum) < 1 or len(last_datenum) < 1:
-                # in case get_values returns [], seems to happen when
+                # in case get_data returns [], seems to happen when
                 # a dataset is deleted (all files removed) while axis type is set to datetime
                 # and there are no other choices. (This might be because of the max(_, 0) for
                 # selecting the previously selected thing, especially now that we only conditionally show
@@ -259,7 +263,7 @@ class XPicker(DatasetVarPicker):
             return self.y_var_len <= var.size
         return False
 
-    def get_values(self, oslice=slice(None)):
+    def get_data(self, oslice=slice(None)):
         selected_type = self.get_type()
         if selected_type == "index":
             # index ignore oslice
@@ -274,8 +278,8 @@ class XPicker(DatasetVarPicker):
             # b/c self.show_var_condition checked already
             if ncvar:
                 # TODO: would be premature, but to optimize look at time increments
-                # ^ to caculate indicies and give oslice parameter to get_values
-                nums = np.ma.array(super(XPicker, self).get_values())
+                # ^ to caculate indicies and give oslice parameter to get_data
+                nums = np.ma.array(super(XPicker, self).get_data())
                 conditions = [
                     self.start_time.dateTime().toPyDateTime(),
                     self.end_time.dateTime().toPyDateTime()
@@ -285,7 +289,7 @@ class XPicker(DatasetVarPicker):
                 dates = np.ma.array(nc.num2date(nums, ncvar.units))
                 dates.mask = nums.mask
                 return dates
-            # TODO: handle dates coming from analysis?
+                # TODO: handle dates coming from analysis?
         else:  # if selected_type == "scatter":
             shape = self.get_original_shape()
             if len(shape) > 1:
@@ -308,14 +312,14 @@ class XPicker(DatasetVarPicker):
                 else:  # have to go by shape
                     for i, dim in enumerate(shape):
                         slice_dim(dim, slices)
-                values = super(XPicker, self).get_values(oslice=slices)
+                values = super(XPicker, self).get_data(oslice=slices)
                 if len(np.shape(values)) > 1:
                     return np.array(values).flatten()
                 else:
                     return values
 
             else:  # case: flat scatter var selected
-                return super(XPicker, self).get_values()
+                return super(XPicker, self).get_data()
 
     def get_config(self):
         """ Calling self.get_config will collect all the options
@@ -329,7 +333,7 @@ class XPicker(DatasetVarPicker):
             "type": axis_type,
             "xdataset": dataset,
             "xvariable": variable,
-            "xdata": self.get_values()
+            "xdata": self.get_data()
         }
         ncvar = self.get_ncvar()
         if hasattr(ncvar, "units") and axis_type != "datetime":

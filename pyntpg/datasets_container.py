@@ -17,7 +17,10 @@ class DatasetsContainer(QObject):
         if path == "":
             self.close(name)
         else:
-            self.datasets[name] = nc.Dataset(path)
+            try:
+                self.datasets[name] = nc.Dataset(path)
+            except IOError:
+                return  # user probably tried to open a non-netcdf file..
             self.sig_opened.emit(name)
 
     @pyqtSlot(str, str)
@@ -44,5 +47,7 @@ class DatasetsContainer(QObject):
         if dataset in self.datasets.keys():
             # otherwise, it's a netcdf dataset, open and list the keys
             return self.datasets[dataset].variables.keys()
+        else:
+            return []
 
 

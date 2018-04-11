@@ -32,7 +32,7 @@ class DiscreteFourierTransform(QWizard):
         :return: freqs, and fourier coeffs (norm)
         """
         frequency, oslice = self.choose_params_pg1.choose_frequency.get_frequency_and_slice()
-        values = self.choose_params_pg1.choose_signal.get_values(oslice)
+        values = self.choose_params_pg1.choose_signal.get_data(oslice)
         xf = fftfreq(len(values), d=frequency**-1)  # note inverse to get sample spacing
         positive_index = np.where(xf > 0)
         freqs = xf[positive_index]

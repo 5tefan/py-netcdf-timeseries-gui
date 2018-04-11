@@ -117,13 +117,13 @@ class FrequencyPicker(FlatDatasetVarPicker):
             self.dataset_widget.setCurrentIndex(max(self.dataset_widget.findText(source_dataset), 0))
             ncvar = self.get_ncvar()
             if ncvar is not None:
-                nums = super(FrequencyPicker, self).get_values(slice(0,2))
+                nums = super(FrequencyPicker, self).get_data(slice(0, 2))
                 dates = nc.num2date(nums, ncvar.units)
                 time_interval_seconds = (dates[1] - dates[0]).total_seconds()
                 self.frequency.setValue(1.0/time_interval_seconds)
 
-            first_datenum = super(FrequencyPicker, self).get_values(oslice=slice(0, 1))
-            last_datenum = super(FrequencyPicker, self).get_values(oslice=slice(-1, None))
+            first_datenum = super(FrequencyPicker, self).get_data(oslice=slice(0, 1))
+            last_datenum = super(FrequencyPicker, self).get_data(oslice=slice(-1, None))
             first_datenum = np.array(first_datenum).flatten()
             last_datenum = np.array(last_datenum).flatten()
             daterange = [first_datenum[0], last_datenum[-1]]
@@ -144,7 +144,7 @@ class FrequencyPicker(FlatDatasetVarPicker):
         if self.by_times.isChecked():
             ncvar = self.get_ncvar()
             if ncvar is not None:
-                nums = super(FrequencyPicker, self).get_values(slice(0,2))
+                nums = super(FrequencyPicker, self).get_data(slice(0, 2))
                 dates = nc.num2date(nums, ncvar.units)
                 time_interval_seconds = (dates[1] - dates[0]).total_seconds()
                 return 1.0/time_interval_seconds
@@ -168,7 +168,7 @@ class FrequencyPicker(FlatDatasetVarPicker):
             ncvar = self.get_ncvar()
             if ncvar is not None:
                 # get start and end into basic int type same as values from
-                # get_values will be
+                # get_data will be
                 start_end_pydatetime = [
                     self.start_time.dateTime().toPyDateTime(),
                     self.end_time.dateTime().toPyDateTime()
@@ -177,7 +177,7 @@ class FrequencyPicker(FlatDatasetVarPicker):
 
                 # then will need the first value and the step between values to
                 # get what index start_end_nums correspond to
-                first_two_var_values = self.get_values(slice(0,2))
+                first_two_var_values = self.get_data(slice(0, 2))
                 time_step = first_two_var_values[1] - first_two_var_values[0]
                 start_index = int((start_end_nums[0]-first_two_var_values[0])/time_step)
                 end_index = int((start_end_nums[1]-first_two_var_values[0])/time_step)

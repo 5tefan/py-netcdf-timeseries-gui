@@ -1,236 +1,214 @@
 import numpy as np
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QSpinBox, QLabel
-from PyQt5.QtCore import QCoreApplication
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSpinBox, QLabel, QCheckBox
+from PyQt5.QtCore import QCoreApplication, pyqtSlot, pyqtSignal, QMutex
 
 from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, CONSOLE_TEXT
 from pyntpg.vertical_scroll_area import VerticalScrollArea
+from pyntpg.horizontal_pair import HorizontalPair
+from pyntpg.clear_layout import clear_layout
+
+from collections import OrderedDict
+
+
+class SliceContainer(QWidget):
+    sig_slicechange = pyqtSignal(list)  # list of slices that the user has selected
+    sig_slices = pyqtSignal(OrderedDict)  # list of the dimension slices
+
+    def __init__(self, *args, **kwargs):
+        super(SliceContainer, self).__init__(*args, **kwargs)
+
+        self.layout = QVBoxLayout()  # TODO: this might be better as a form layout
+        self.setLayout(self.layout)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+
+        self.slice_change_mutex = QMutex()
+
+        self.spinboxes = OrderedDict()
+
+    @pyqtSlot(OrderedDict)
+    def configure_dimensions(self, dims):
+        assert isinstance(dims, OrderedDict)
+
+        # clear anything that was previously here
+        clear_layout(self.layout)
+        self.spinboxes = OrderedDict()
+
+        if len(dims) <= 1:
+            self.sig_slices.emit(OrderedDict([(k, slice(0, v)) for k, v in dims.items()]))
+            return
+
+        dict_items = dims.items()
+        for i, (dim, size) in enumerate(dict_items):
+            # create dim spinboxes and add them to layout
+            begin_spinbox = QSpinBox()
+            begin_spinbox.setObjectName("%s:begin" % dim)
+            begin_spinbox.setRange(0, size-1)
+
+            end_spinbox = QSpinBox()
+            end_spinbox.setObjectName("%s:end" % dim )
+            end_spinbox.setRange(1, size)
+
+            if i == len(dict_items) - 1:  # if it's the last dimension take only 1
+                end_spinbox.setValue(1)
+            else:  # otherwise take them all
+                end_spinbox.setValue(size)
+
+            colon = QLabel(":")
+            colon.setMaximumWidth(5)
+
+            dim_title = QLabel("%s: " % dim)
+
+            row = HorizontalPair(dim_title, begin_spinbox, colon, end_spinbox)
+            row.setMinimumWidth(150)
+            self.layout.addWidget(row)
+
+            begin_spinbox.valueChanged.connect(self.slice_changed)
+            end_spinbox.valueChanged.connect(self.slice_changed)
+            self.spinboxes[dim] = [begin_spinbox, end_spinbox]
+
+        self.emit_slices()
+        self.layout.addStretch(1)  # keeps the dim slices from spreading vertically with more room
+
+    @pyqtSlot(int)
+    def slice_changed(self, x):
+        # mutex protected otherwise this slot will potentially fire multiple times
+        # responding to programmatic changing of the spin boxes.
+        if self.slice_change_mutex.tryLock():
+            spinbox = self.sender()
+            name = spinbox.objectName()
+
+            if "begin" in name:
+                # end must be at least start + 1
+                # if begin changed, make sure end is being+1 or greater
+                try:
+                    dim = name.split(":")[0]
+                    end_spinbox = self.spinboxes[dim][1]
+                    if end_spinbox.value() <= x:
+                        end_spinbox.setValue(x+1)
+                except KeyError:
+                    pass
+
+            if "end" in name:
+                # end must be at least start + 1
+                # if end changed, make sure begin is less than end
+                try:
+                    dim = name.split(":")[0]
+                    begin_spinbox = self.spinboxes[dim][0]
+                    if begin_spinbox.value() >= x:
+                        begin_spinbox.setValue(x-1)
+                except KeyError:
+                    pass
+
+            self.emit_slices()
+            self.slice_change_mutex.unlock()
+
+    def emit_slices(self):
+        self.sig_slices.emit(OrderedDict([(k, slice(a.value(), b.value())) for k, (a, b) in self.spinboxes.items()]))
+
+
+
+class DimensionFlattenPicker(QWidget):
+
+    sig_slices = pyqtSignal(OrderedDict)  # list of the dimension slices, pass through from SliceContainer
+
+    def __init__(self, *args, **kwargs):
+        super(DimensionFlattenPicker, self).__init__(*args, **kwargs)
+
+        self.layout = QVBoxLayout()
+        self.setLayout(self.layout)
+        self.layout.setContentsMargins(0, 0, 0, 0)
+
+        self.checkbox_flatten = QCheckBox("Flatten?", self)
+        self.checkbox_flatten.setChecked(True)  # start checked, back compatible behavior
+        self.layout.addWidget(self.checkbox_flatten)
+
+        self.datasets = QCoreApplication.instance().datasets
+        self.ipython = QCoreApplication.instance().ipython
+
+        self.slice_container = SliceContainer()
+        self.slice_container.setMinimumHeight(self.slice_container.minimumSizeHint().height())
+        self.layout.addWidget(VerticalScrollArea(self.slice_container))
+
+        self.checkbox_flatten.clicked.connect(self.set_flatten_enabled)  # only fire for user clicks
+        # self.sig_slices.connect(self.slice_container.sig_slices)
+        self.slice_container.sig_slices.connect(self.accept_slice_selection)
+
+        self.slices = OrderedDict()
+        self.shape = ()
+
+    @pyqtSlot(str, str)
+    def variable_changed(self, dataset, variable):
+        if dataset == CONSOLE_TEXT:
+            shape = np.shape(self.ipython.get_var_value(variable))
+            names = np.arange(len(shape))
+        else:
+            shape = np.shape(self.datasets.datasets[dataset].variables[variable])
+            names = self.datasets.datasets[dataset].variables[variable].dimensions
+
+        self.shape = shape
+        enable_flattening = len(shape) > 1
+
+        self.slice_container.setEnabled(enable_flattening)
+        self.checkbox_flatten.setEnabled(enable_flattening)
+        self.checkbox_flatten.setChecked(enable_flattening)
+        self.slice_container.configure_dimensions(OrderedDict(zip(names, shape)))
+
+    @pyqtSlot(bool)
+    def set_flatten_enabled(self, t_or_f):
+        self.slice_container.setEnabled(t_or_f)
+        if t_or_f:
+            self.sig_slices.emit(self.slices)
+        else:
+            end_index = self.shape[0] if len(self.shape) > 0 else 0
+            dimension = self.slices.keys()[0]
+            self.sig_slices.emit(OrderedDict([(dimension, slice(0, end_index))]))
+
+    @pyqtSlot(OrderedDict)
+    def accept_slice_selection(self, slices=OrderedDict()):
+        self.slices = slices
+        self.sig_slices.emit(slices)
 
 
 class FlatDatasetVarPicker(DatasetVarPicker):
-    """ Generic widget to pick a dataset and a variable from that dataset.
-    The widget handles flattening such that the result is always a flat array
-    of values, ie it prompts the user to enter slices by which it flattens.
-    """
 
-    def __init__(self, title=None):
-        """
-        :type title: str
-        :param title: Title for dataset + var picker
-        :return: None
-        """
-        super(FlatDatasetVarPicker, self).__init__(title=title)
+    sig_anticipated_length = pyqtSignal(int)  # anticipated size along x dimension
+    sig_slices = pyqtSignal(OrderedDict)  # list of the dimension slices, pass through from SliceContainer
 
-        self.needs_flatten = False
-        self.flattenings = {}
+    def __init__(self, *args, **kwargs):
+        super(FlatDatasetVarPicker, self).__init__(*args, **kwargs)
+        # inheriting self.layout instance of QVboxLayout
+        self.layout.setContentsMargins(0, 0, 0, 0)
 
-        self.variable_widget.currentIndexChanged.connect(self.check_dims)
+        self.flattener = DimensionFlattenPicker()
+        self.layout.addWidget(self.flattener)
 
-        self.dimension_picker_widget = QWidget()
-        self.dimension_picker_layout = QVBoxLayout()
-        self.dimension_picker_layout.setSpacing(0)
-        self.dimension_picker_widget.setLayout(self.dimension_picker_layout)
+        self.slices = []  # hold the slices user selects, use in get_data.
 
-        self.dimension_picker_scroll = VerticalScrollArea()
-        self.dimension_picker_scroll.setWidget(self.dimension_picker_widget)
-        self.dimension_picker_scroll.setVisible(False)
-        self.layout.addWidget(self.dimension_picker_scroll)
+        self.flattener.sig_slices.connect(self.accept_slice_selection)
+        self.flattener.sig_slices.connect(self.sig_slices)
+        self.variable_widget.currentIndexChanged[str].connect(self.check_dims)
 
-        self.layout.addStretch()
+    @pyqtSlot(str)
+    def check_dims(self, variable):
+        dataset = self.dataset_widget.currentText()
+        if dataset and variable:
+            self.flattener.variable_changed(dataset, variable)
 
-    def check_dims(self, var_index):
-        """ Check the dimensions of the variable selected.
+    @pyqtSlot(OrderedDict)
+    def accept_slice_selection(self, slices=OrderedDict()):
+        print "received slices: %s" % slices
+        self.slices = slices
 
-        check_dims should be connected to self.variable_widget.currentIndexChanged signal
-        so that when a variable is selected or changed, this function is triggered to
-        make sure that the variable selected has len(shape) == 1. If the variable is not
-        flat, then we populate self.dimension_picker_layout with dim labels and
-        spinboxes to enter Python slice like selections.
+        length = np.prod([s.stop - s.start for s in self.slices.values()])
+        self.sig_anticipated_length.emit(length)
 
-        :type var_index: int
-        :param var_index: variable index in self.variable_widget
-        :return: None
-        """
-        # reset everything to no flattening needed, in case we don't need to do any
-        # and then add back all the flattening stuff if we do end up needing flattening
-
-        # delete anything that was in self.dimension_picker_layout previously
-        for i in reversed(range(self.dimension_picker_layout.count())):
-            self.dimension_picker_layout.itemAt(i).widget().deleteLater()
-        # hide the dimension scroll area in case we dont need flattening
-        self.dimension_picker_scroll.setVisible(False)
-
-        self.needs_flatten = False  # assume flat at start
-        self.flattenings = {}
-
-        dataset = str(self.dataset_widget.currentText())
-        variable = str(self.variable_widget.currentText())
-
-        try:
-            nc_obj = QCoreApplication.instance().datasets.datasets[dataset]
-        except AttributeError:
-            return None  # bail if can't find the netcdf object
-
-        # seems to be a safe assumption that netcdf variable objects
-        # have a dimensions attribute, required right?
-        dim_len = len(nc_obj.variables[variable].dimensions)
-
-        # if not flat, do the flattening
-        if dim_len > 1:
-            self.needs_flatten = True
-            self.pick_flatten_dims_netcdf(nc_obj, variable)
-
-        if self.needs_flatten:
-            # if the flattening needs to happen, show the widget!
-            self.dimension_picker_scroll.setVisible(True)
-
-    def pick_flatten_dims_listlike(self, listlike):
-        """ Populate self.dimension_picker_layout to flatten a listlike variable.
-
-        See the note in docstring for self.pick_flatten_dims_netcdf for explanation
-        of list of spinbox return value
-
-        :param listlike: A listlike thing to flatten
-        :return: list of spinboxes created
-        """
-        result = []
-        # convert to a numpy array, so that we can use shape
-        listlike = np.array(listlike)
-        dim_len = len(listlike.shape)
-
-        for dim in range(dim_len):
-            # enumerate with i to auto set the last dim to size 1
-
-            # create the container to hold the slices
-            slice_container = QWidget()
-            slice_container_layout = QHBoxLayout()
-            slice_container.setLayout(slice_container_layout)
-
-            # create dim spinboxes and add them to layout
-            begin_spinbox = QSpinBox()
-            begin_spinbox.setMaximum(listlike.shape[dim]-1)
-            end_spinbox = QSpinBox()
-            end_spinbox.setMaximum(listlike.shape[dim])
-            if dim == dim_len - 1:  # if it's the last dimension take only 1
-                end_spinbox.setValue(1)
-            else:  # otherwise take them all
-                end_spinbox.setValue(listlike.shape[dim])
-            begin_spinbox.valueChanged.connect(lambda x, end_spinbox=end_spinbox: end_spinbox.setMinimum(x+1))
-            slice_container_layout.addWidget(begin_spinbox)
-
-            colon = QLabel(":")
-            colon.setMaximumWidth(5)
-            slice_container_layout.addWidget(colon)
-
-            slice_container_layout.addWidget(end_spinbox)
-
-            result += [begin_spinbox, end_spinbox]
-            # Add spinboxes to self.flattenings to look up later
-            self.flattenings[dim] = (begin_spinbox, end_spinbox)
-            self.dimension_picker_layout.addWidget(QLabel("dim %s" % dim))
-            self.dimension_picker_layout.addWidget(slice_container)
-        return result
-
-    def pick_flatten_dims_netcdf(self, nc_obj, variable):
-        """ Populate self.dimension_picker_layout to flatten a netcdf variable.
-
-        Note that this function returns a list of the spinboxes created. This
-        allows inheriting classes to wrap self.pick_flatten_dims_netcdf by
-        something like:
-
-        def pick_flatten_dims_netcdf(self, nc_obj, variable):
-            [s.valueChanged.connect(self.emit_y_picked) for s in super.pick_flatten...]
-
-        This is my current solution to the problem of trying to connect signals to a
-        slot that isn't defined in this class anymore. Also decided it was convoluted
-        to wrap the signal connect in a try so that it would work if the ovverriding
-        class defined emit_y_picked before the super call. Old code for reference:
-        # begin_spinbox.valueChanged.connect(self.emit_y_picked)
+    def get_data(self, _=None):
+        return super(FlatDatasetVarPicker, self).get_data(oslice=self.slices)
 
 
-        :param nc_obj: netcdf object (dataset) selected
-        :type nc_obj: Dataset
-        :param variable: the variable selected
-        :type variable: str
-        :return: A list of the spinboxes created
-        """
-        result = []
-        dim_len = len(nc_obj.variables[variable].dimensions)
-        for i, dim in enumerate(nc_obj.variables[variable].dimensions):
-            # enumerate with i to auto set the last dim to size 1
-
-            # create the container to hold the slices
-            slice_container = QWidget()
-            slice_container_layout = QHBoxLayout()
-            slice_container.setLayout(slice_container_layout)
-
-            # create dim spinboxes and add them to layout
-            begin_spinbox = QSpinBox()
-            begin_spinbox.setMaximum(nc_obj.dimensions[dim].size-1)
-            end_spinbox = QSpinBox()
-            end_spinbox.setMaximum(nc_obj.dimensions[dim].size)
-            if i == dim_len - 1:  # if it's the last dimension take only 1
-                end_spinbox.setValue(1)
-            else:  # otherwise take them all
-                end_spinbox.setValue(nc_obj.dimensions[dim].size)
-            begin_spinbox.valueChanged.connect(lambda x, end_spinbox=end_spinbox: end_spinbox.setMinimum(x+1))
-            slice_container_layout.addWidget(begin_spinbox)
-
-            colon = QLabel(":")
-            colon.setMaximumWidth(5)
-            slice_container_layout.addWidget(colon)
-
-            slice_container_layout.addWidget(end_spinbox)
-
-            result += [begin_spinbox, end_spinbox]
-            # Add spinboxes to self.flattenings to look up later
-            self.flattenings[dim] = (begin_spinbox, end_spinbox)
-            self.dimension_picker_layout.addWidget(QLabel(dim))
-            self.dimension_picker_layout.addWidget(slice_container)
-        return result
-
-    def get_values(self, oslice=slice(None)):
-        """ Get the list of values specified by the dataset + variable.
-
-        Call this method to evaluate the selection specified by the combination
-        of the dataset and variable selections, flattened if necessary.
-
-        :param oslice: Optional slice to apply retrieving data
-        :return: List of values
-        """
-        values = super(FlatDatasetVarPicker, self).get_values(oslice=oslice)
-        return self.make_flat(values)
-
-    def get_var_len(self):
-        if self.needs_flatten:
-            product = 1
-            for dim in self.get_dim_slices().values():
-                product *= dim.stop - dim.start
-            return product
-        else:
-            return self.get_ncvar().size
 
 
-    def make_flat(self, var):
-        """ Flatten the values in var if they need flattening.
 
-        :param var: List values to flatten
-        :return: list: flattened values from var
-        """
-        if self.needs_flatten:
-            var = np.array(var)
-            dim_slices = self.get_dim_slices()
-            ncvar = self.get_ncvar()
-            slices = [dim_slices.get(k, slice(None)) for k in ncvar.dimensions]
-            var = var[slices].flatten()
-        return var
 
-    def get_dim_slices(self):
-        """ Get a dict containing a slice for each dim flattened.
 
-        :return: Dict of dims and their slices
-        """
-        dim_slices = {}
-        if self.needs_flatten:
-            for dim in self.flattenings.keys():
-                dim_slices[dim] = slice(*(f.value() for f in self.flattenings[dim]))
-        return dim_slices
+
