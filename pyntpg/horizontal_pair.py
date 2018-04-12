@@ -13,7 +13,7 @@ class HorizontalPair(QWidget):
 
 class HorizontalFormPair(QWidget):
     def __init__(self, left, right, *args, **kwargs):
-        assert isinstance(left, basestring), "Expected left to be form label string!"
+        assert isinstance(left, str) or isinstance(left, basestring), "Expected left to be form label string!"
         super(HorizontalFormPair, self).__init__(*args, **kwargs)
 
         self.layout = QFormLayout()

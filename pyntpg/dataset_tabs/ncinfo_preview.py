@@ -47,7 +47,8 @@ class NcinfoPreview(QWidget):
         """ Update the text displayed inside the preview widget.
         :return: None
         """
-        if isinstance(netcdf_filepath, basestring) and os.path.exists(netcdf_filepath):
+        if (isinstance(netcdf_filepath, str) 
+                or isinstance(netcdf_filepath, basestring)) and os.path.exists(netcdf_filepath):
             try:
                 text = self.make_nc_preview(nc.Dataset(netcdf_filepath))
             except IOError as e:

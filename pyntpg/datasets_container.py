@@ -40,8 +40,7 @@ class DatasetsContainer(QObject):
 
     def list_datasets(self):
         """ Get a list of the datasets available. """
-        names = self.datasets.keys()
-        return names
+        return list(self.datasets.keys())
 
     def list_variables(self, dataset):
         if dataset in self.datasets.keys():

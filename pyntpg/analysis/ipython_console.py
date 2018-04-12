@@ -56,7 +56,7 @@ class ShadowNotifyUserNs(dict):
 
     def update(self, *args, **kwargs):
         """ Ensure that update delegates to __setitem__... """
-        for k, v in dict(*args, **kwargs).iteritems():
+        for k, v in dict(*args, **kwargs).items():
             self[k] = v
 
 

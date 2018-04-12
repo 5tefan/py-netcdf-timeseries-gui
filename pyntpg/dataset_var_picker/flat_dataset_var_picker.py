@@ -162,7 +162,7 @@ class DimensionFlattenPicker(QWidget):
             self.sig_slices.emit(self.slices)
         else:
             end_index = self.shape[0] if len(self.shape) > 0 else 0
-            dimension = self.slices.keys()[0]
+            dimension = list(self.slices.keys())[0]
             self.sig_slices.emit(OrderedDict([(dimension, slice(0, end_index))]))
 
     @pyqtSlot(OrderedDict)
@@ -208,7 +208,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
 
     def get_data(self, _=None):
         dataset, variable = self.selected()
-        data = QCoreApplication.instance().get_data(dataset, variable, oslice=self.slices.values())
+        data = QCoreApplication.instance().get_data(dataset, variable, oslice=list(self.slices.values()))
         if len(self.slices) > 1:
             return data.flatten()
         else:

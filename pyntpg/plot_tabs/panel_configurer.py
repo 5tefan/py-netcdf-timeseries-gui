@@ -54,8 +54,8 @@ class PanelConfigurer(QWidget):
             self.signal_new_config.emit(config_dict)
         except (KeyError, TypeError, AssertionError) as e:
             # TODO: Status alert, no configured
-            print traceback.format_exc()
-            print "ERRROR %s" % e
+            print(traceback.format_exc())
+            print("ERRROR %s" % e)
             pass
 
     def show_preview(self):

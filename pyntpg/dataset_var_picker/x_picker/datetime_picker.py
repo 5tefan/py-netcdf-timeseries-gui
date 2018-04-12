@@ -80,10 +80,10 @@ class DatetimePicker(DatasetVarPicker):
             return False
 
         dimensions = self.get_dimensions(dataset, variable)
-        if not set(dimensions.keys()).issubset(self.slices.keys()):
+        if not set(list(dimensions.keys())).issubset(list(self.slices.keys())):
             return False
 
-        if not np.prod(dimensions.values()) == self.target_len:
+        if not np.prod(list(dimensions.values())) == self.target_len:
             return False
 
         value = self.get_value(dataset, variable)
@@ -96,7 +96,7 @@ class DatetimePicker(DatasetVarPicker):
 
     def get_data(self, _=None):
         num_dims = len(self.get_original_shape())
-        data = super(DatetimePicker, self).get_data(oslice=self.slices.values()[:num_dims])
+        data = super(DatetimePicker, self).get_data(oslice=list(self.slices.values())[:num_dims])
 
         if not isinstance(data.item(0), datetime):
             # not datetime already, convert through num2date

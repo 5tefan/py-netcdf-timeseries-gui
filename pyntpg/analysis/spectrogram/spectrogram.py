@@ -23,7 +23,6 @@ class Spectrogram(QWizard):
         from scipy.signal import spectrogram
         frequency, oslice = self.page1.choose_frequency.get_frequency_and_slice()
         args = self.page1.get_arguments_for_spectrogram()
-        print args
         values = self.page1.choose_signal.get_data(oslice)
         f, t, Sxx = spectrogram(values, frequency, **args)
         return t, f, Sxx
