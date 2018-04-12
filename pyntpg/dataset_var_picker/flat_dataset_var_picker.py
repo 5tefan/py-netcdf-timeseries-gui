@@ -185,6 +185,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
         self.layout.addWidget(self.flattener)
 
         self.slices = []  # hold the slices user selects, use in get_data.
+        self.anticipated_length = None
 
         self.flattener.sig_slices.connect(self.accept_slice_selection)
         self.flattener.sig_slices.connect(self.sig_slices)
@@ -201,7 +202,9 @@ class FlatDatasetVarPicker(DatasetVarPicker):
         self.slices = slices
 
         length = np.prod([s.stop - s.start for s in self.slices.values()])
+        self.anticipated_length = length
         self.sig_anticipated_length.emit(length)
+
 
     def get_data(self, _=None):
         dataset, variable = self.selected()

@@ -111,11 +111,9 @@ class DatetimePicker(DatasetVarPicker):
         else:
             return data
 
-
     def get_config(self):
         default = super(DatetimePicker, self).get_config()
         default.update({"type": "datetime"})
-        print default
         return default
 
 

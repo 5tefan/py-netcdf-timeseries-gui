@@ -52,7 +52,7 @@ class PanelConfigurer(QWidget):
         try:
             config_dict = self.make_config_dict()
             self.signal_new_config.emit(config_dict)
-        except (KeyError, TypeError) as e:
+        except (KeyError, TypeError, AssertionError) as e:
             # TODO: Status alert, no configured
             print traceback.format_exc()
             print "ERRROR %s" % e
