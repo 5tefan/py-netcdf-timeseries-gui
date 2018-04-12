@@ -1,7 +1,6 @@
 from PyQt5.QtWidgets import QWizard, QWidget, QHBoxLayout, QFormLayout, QSpinBox, QComboBox
-
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from pyntpg.analysis.discrete_fourier_transform.discrete_fourier_transform import ChooseParameters
@@ -25,7 +24,7 @@ class Spectrogram(QWizard):
         frequency, oslice = self.page1.choose_frequency.get_frequency_and_slice()
         args = self.page1.get_arguments_for_spectrogram()
         print args
-        values = self.page1.choose_signal.get_values(oslice)
+        values = self.page1.choose_signal.get_data(oslice)
         f, t, Sxx = spectrogram(values, frequency, **args)
         return t, f, Sxx
 
@@ -54,7 +53,7 @@ class ChooseSpectroParameters(ChooseParameters):
         self.choose_nperseg.setMinimum(3)
         self.choose_nperseg.setMaximum(256)  # defult taken from scipy.signal.spectrogram
         self.choose_nperseg.setValue(256)
-        self.choose_signal.y_picked.connect(lambda n: self.choose_nperseg.setMaximum(n))
+        # self.choose_signal.y_picked.connect(lambda n: self.choose_nperseg.setMaximum(n))
         secondformcollayout.addRow("nperseg", self.choose_nperseg)
 
         # choose lenstep
@@ -62,7 +61,7 @@ class ChooseSpectroParameters(ChooseParameters):
         self.choose_lenstep.setMinimum(1)
         self.choose_lenstep.setMaximum(256)
         self.choose_lenstep.setValue(256/8)  # default taken from scipy.signal.spectrogram
-        self.choose_signal.y_picked.connect(lambda n: self.choose_lenstep.setMaximum(n))
+        # self.choose_signal.y_picked.connect(lambda n: self.choose_lenstep.setMaximum(n))
         secondformcollayout.addRow("lenstep", self.choose_lenstep)
 
         # coerce choose_signal to emit len b/c we probably missed it

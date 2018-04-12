@@ -1,7 +1,8 @@
 from __future__ import print_function
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QSplitter, QSpinBox, QDialogButtonBox, QFormLayout, QDialog
-from PyQt5.QtWidgets import QFrame, QHBoxLayout
+
 from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QFrame, QHBoxLayout
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QSplitter, QSpinBox, QDialogButtonBox, QFormLayout, QDialog
 
 # TODO: for the output function, make it so that all panels are an increment of 1/n where n is the number of panels
 DEFAULT_LAYOUT = (1, 2)  # number cols, number rows

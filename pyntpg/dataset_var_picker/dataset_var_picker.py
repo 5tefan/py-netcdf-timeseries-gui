@@ -1,8 +1,13 @@
-from PyQt5.QtWidgets import QWidget, QComboBox, QVBoxLayout, QLabel, QFormLayout, QSizePolicy
-from PyQt5.QtCore import QCoreApplication
-import numpy as np
+from collections import OrderedDict
 
-from_console_text = "Analysis results"
+import numpy as np
+from PyQt5.QtCore import QCoreApplication, pyqtSlot
+from PyQt5.QtWidgets import QWidget, QComboBox, QVBoxLayout, QLabel, QFormLayout, QSizePolicy
+
+# from pyntpg.datasets_container import DatasetsContainer
+# from pyntpg.analysis.ipython_console import IPythonConsole
+
+CONSOLE_TEXT = "IPython Console"
 
 class DatasetVarPicker(QWidget, object):
     """ Base class for picking what goes on the axes.
@@ -32,8 +37,8 @@ class DatasetVarPicker(QWidget, object):
         self.dataset_var_widget.setLayout(self.dataset_var_layout)
         # -----------
         self.dataset_widget = QComboBox()
-        # self.dataset_widget.addItem(from_console_text)
-        self.dataset_widget.currentIndexChanged.connect(self.update_variables)
+        # self.dataset_widget.addItem(CONSOLE_TEXT)
+        self.dataset_widget.currentIndexChanged[str].connect(self.dataset_selected)
         self.dataset_widget.setSizePolicy(QSizePolicy.MinimumExpanding, QSizePolicy.Preferred)
         self.dataset_widget.setMaximumWidth(200)
         self.dataset_var_layout.addRow("Source", self.dataset_widget)
@@ -43,132 +48,123 @@ class DatasetVarPicker(QWidget, object):
         self.dataset_var_layout.addRow("Var", self.variable_widget)
         self.layout.addWidget(self.dataset_var_widget)
         # -----------
-        try:  # Can't do these if eg. running from main in this file
-            # connect the update handlers
-            QCoreApplication.instance().datasets_updated.connect(self.update_datasets)
-            QCoreApplication.instance().console_vars_updated.connect(self.update_console_vars)
-            QCoreApplication.instance().dataset_name_changed.connect(self.rename_dataset)
-            # then for initial data, manually put that through
-            self.update_datasets(QCoreApplication.instance().dict_of_datasets)
-            self.update_console_vars(QCoreApplication.instance().dict_of_vars)
-        except AttributeError as e:
-            assert False, e
+        self.datasets = QCoreApplication.instance().datasets  # type: DatasetsContainer
 
+        self.datasets.sig_rename.connect(self.rename_dataset)
+        self.datasets.sig_opened.connect(self.add_dataset)
+        self.datasets.sig_closed.connect(self.rm_dataset)
+
+        self.dataset_widget.addItems(self.datasets.list_datasets())  # initially populate datasets available
+
+        self.ipython = QCoreApplication.instance().ipython  # type: IPythonConsole
+        self.ipython_vars = self.ipython.get_plot_vars()
+        if len(self.ipython_vars) > 0:
+            self.dataset_widget.addItem(CONSOLE_TEXT)
+        self.ipython.sig_newvar.connect(self.from_console_newvar)
+        self.ipython.sig_delvar.connect(self.from_console_delvar)
+
+
+    @pyqtSlot(str, str)
     def rename_dataset(self, from_str, to_str):
+        """ Rename a dataset currently in the source selection. """
         index = self.dataset_widget.findText(from_str)
         self.dataset_widget.setItemText(index, to_str)
 
-    def insert_from_console_option(self):
-        """ Add the from_console_text option to the sources if it has variables
-        and isn't there already.
-        :return: Boolean if from_console_text was inserted
-        """
-        vars_has_items = len(QCoreApplication.instance().dict_of_vars) > 0
-        from_console_needs_inserting = self.dataset_widget.findText(from_console_text) == -1
-        if vars_has_items and from_console_needs_inserting:
-            self.dataset_widget.insertItem(0, from_console_text)
-            return True
-        return False
+    @pyqtSlot(str)
+    def add_dataset(self, name):
+        """ Add a dataset to the list of options displayed. """
+        self.dataset_widget.addItem(name)
 
-    def update_datasets(self, dict_of_datasets):
-        """ Intended to be a slot to connect the signal for new/updated datasets.
-        Note that the dict_of_datasets argument doesn't need the nc obj value pair for each
-        key, but the signal emitted contains it so we accept but ignore it.
-        :param dict_of_datasets: dict with keys of name of dataset and value being the nc obj
-        :return: None
-        """
-        # do some set computations to figure out what needs to be removed and inserted
-        incoming = set(dict_of_datasets.keys())
-        if self.insert_from_console_option():
-            incoming |= {from_console_text}  # set literal here
-        already_inserted = set([self.dataset_widget.itemText(i) for i in range(self.dataset_widget.count())])
-        # to_insert = incoming.difference(already_inserted)
-        # items to insert
-        self.dataset_widget.addItems([i for i in incoming.difference(already_inserted)])
-        # items to remove
-        [self.dataset_widget.removeItem(self.dataset_widget.findText(i)) for i in already_inserted.difference(incoming)]
-        self.update_variables()
+    @pyqtSlot(str)
+    def rm_dataset(self, name):
+        """ Remove a dataset from the list of options displayed. """
+        index = self.dataset_widget.findText(name)
+        if index >= 0:
+            self.dataset_widget.removeItem(index)
 
-    def update_variables(self):
-        """ Slot that reacts on change of self.dataset_widget and updates the self.variable_widget
-        to display the variables for the selected dataset.
-        :return: None
-        """
+    @pyqtSlot(str)
+    def from_console_newvar(self, name):
+        """ React to receiving notification that a new variable is avilable from the IPython Console.
+        In addition to tracking the variables, this must also handle if CONSOLE_TEXT is not already 
+        shown and needs to be added to the datasets_widget to allow selecting it as a source."""
+        self.ipython_vars.append(name)  # in all cases, displayed or not, track it
+        if self.dataset_widget.findText(CONSOLE_TEXT) == -1:
+            # if CONSOLE_TEXT not listed as a source, add it to the datasets
+            self.dataset_widget.addItem(CONSOLE_TEXT)
+            # self.variable_widget.addItems(self.ipython_vars)  # TODO; verify dont think we need this, should trigger dataset_seelcted
+            # exclusive, since if not found, can't be selected...
+        elif self.dataset_widget.currentText() == CONSOLE_TEXT and self.show_var_condition(CONSOLE_TEXT, name):
+            # otherwise, if it was displayed, need to add new var to available vars
+            self.variable_widget.addItem(name)
+
+    @pyqtSlot(str)
+    def from_console_delvar(self, name):
+        """ Respond to receiving notfication that a variable that was available is no longer 
+        available from the IPython Console. Symetrically to adding a variable, must also remove
+        the CONSOLE_TEXT from the sources if the last varaible is removed. """
+        self.ipython_vars.pop(name)
+        if self.dataset_widget.currentText() == CONSOLE_TEXT:
+            # if CONSOLE_TEXT is the dataset, remove this variable from the combobox
+            index = self.variable_widget.findText(name)
+            if index >= 0:
+                self.variable_widget.removeItem(index)
+        if len(self.ipython_vars) == 0:
+            index_datasets = self.dataset_widget.findText(CONSOLE_TEXT)
+            if index_datasets >= 0:
+                self.dataset_widget.removeItem(index_datasets)
+
+    @pyqtSlot(str)
+    def dataset_selected(self, name):
+        """ React to the user selecting a dataset by displaying the appropriate variables. """
         self.variable_widget.clear()
-        current_dataset = str(self.dataset_widget.currentText())
-        if current_dataset == from_console_text:  # If the IPython console is selected
-            for var in QCoreApplication.instance().dict_of_vars.keys():
-                var_value = QCoreApplication.instance().dict_of_vars[var]
-                if self.show_var_condition(var_value):
-                    self.variable_widget.addItem(var)
-        else:  # Otherwise must fetch from the netcdf obj
-            try:
-                nc_obj = QCoreApplication.instance().dict_of_datasets[current_dataset]
-                for var in QCoreApplication.instance().dict_of_datasets[current_dataset].variables:
-                    if self.show_var_condition(nc_obj.variables[var], nc_obj):
-                        self.variable_widget.addItem(var)
-            except KeyError:
-                pass
-
-    def update_console_vars(self, var_list):
-        """ Slot that should be called when the base instance dict_of_vars is updated.
-        Result is an updated variable_widget combobox in the case that it's being displayed.
-        This function differs from self.update_variables in that it saves the selected item
-        and tries to reselect that item after the update.
-        :type var_list: dict
-        :param var_list: the updated dict of vars
-        :return: None
-        """
-        current_dataset = str(self.dataset_widget.currentText())
-        if current_dataset == from_console_text:  # If the IPython console is selected
-            selected = str(self.variable_widget.currentText())
-            self.variable_widget.clear()
-            self.variable_widget.addItems(var_list.keys())
-            # TODO: if findText -1, flash/animate/highlight that widget is blank, see
-            # https://docs.google.com/viewer?url=https://sites.google.com/site/kennethchristiansen/DUI.html
-            self.variable_widget.setCurrentIndex(max(self.variable_widget.findText(selected), 0))
+        if name == CONSOLE_TEXT:
+            # When selecting CONSOLE_TEXT, get vars from IPython and connect slots
+            # to update for new variables.
+            self.variable_widget.addItems([v for v in self.ipython.get_plot_vars() if self.show_var_condition(name, v)])
         else:
-            # Bugfix: if from_console_text not already in source dropdown,
-            # it won't ever show up. So this updates the source list when we get a
-            # new console var, ie trigger the len(QCoreApplication.instance().dict_of_vars) > 0
-            # statement to include console var option in source
-            self.insert_from_console_option()
+            self.variable_widget.addItems([v for v in self.datasets.list_variables(name) if self.show_var_condition(name, v)])
 
-    def show_var_condition(self, var, nc_obj=None):
-        """ Should the variable be shown in the combobox?
-        :param var: decide if this variable should be shown
-        :return: Boolean, show or don't show in combobox
-        """
-        return True
+    @pyqtSlot(str, str)
+    def show_var_condition(self, dataset, variable):
+        """ By default true, but use in subclass to, eg for x_picker, only show variables that
+        are the same shape as the selected/picked y-axis variable. """
+        return len(self.get_original_shape(dataset, variable)) > 0
 
     def get_ncvar(self):
         """ Helper to get the netCDF variable if one is selected otherwise None.
         :return: netCDF variable selected or None
         """
         current_dataset = str(self.dataset_widget.currentText())
-        if current_dataset == from_console_text:
-            return None
-        current_variable = str(self.variable_widget.currentText())
-        try:
-            nc_obj = QCoreApplication.instance().dict_of_datasets[current_dataset]
-            return nc_obj.variables[current_variable]
-        except KeyError:
-            return None
+        if current_dataset != CONSOLE_TEXT:
+            current_variable = str(self.variable_widget.currentText())
+            return self.datasets.datasets[current_dataset].variables[current_variable]
 
     def get_ncobj(self):
         """ Helpter to get the netCDF object if one is selected, otherwise None.
         :return: netcdf object selected or None
         """
         current_dataset = str(self.dataset_widget.currentText())
-        if current_dataset == from_console_text:
-            return None
+        if current_dataset != CONSOLE_TEXT:
+            return self.datasets.dataset[current_dataset]
+
+    def selected(self):
+        dataset = str(self.dataset_widget.currentText())
+        variable = str(self.variable_widget.currentText())
+        return dataset, variable
+
+    def get_value(self, dataset=None, variable=None):
         try:
-            return QCoreApplication.instance().dict_of_datasets[current_dataset]
-        except KeyError:
+            if dataset is None and variable is None:
+                # if arguments are none, use the current selected.
+                dataset, variable = self.selected()
+            if dataset == CONSOLE_TEXT:
+                return self.ipython.get_var_value(variable)
+            else:
+                return self.datasets.datasets[dataset].variables[variable]
+        except Exception:
             return None
 
-
-    def get_values(self, oslice=slice(None)):
+    def get_data(self, oslice=slice(None)):
         """ Get the list of values specified by the dataset + variable.
 
         Call this method to evaluate the selection specified by the combination
@@ -177,48 +173,55 @@ class DatasetVarPicker(QWidget, object):
         :param oslice: Optional slice to apply retrieving data
         :return: List of values
         """
-        # TODO: general, do slicing before getting data!!!
-        # ^ can be a gradual change, but will be important
-        # for handling larger datasets
+        dataset, variable = self.selected()
+        return QCoreApplication.instance().get_data(dataset, variable, oslice)
 
-        dataset = str(self.dataset_widget.currentText())
-        variable = str(self.variable_widget.currentText())
-
-        if not dataset or not variable:
-            print "dataset_var_picker get_values abort early"
-            return []
-        elif dataset == from_console_text:
-            try:
-                print "returning from_console_text variable"
-                print QCoreApplication.instance().dict_of_vars[variable][oslice]
-                return QCoreApplication.instance().dict_of_vars[variable][oslice]
-            except AttributeError:
-                return []
-        else:
-            try:
-                return QCoreApplication.instance().dict_of_datasets[dataset].variables[variable][oslice]
-            except AttributeError:
-                return []
-
-    def get_original_shape(self):
+    def get_original_shape(self, dataset=None, variable=None):
         """ Get the shape of the actual variable selected.
         :return:
         """
-        dataset = str(self.dataset_widget.currentText())
-        variable = str(self.variable_widget.currentText())
+        if dataset is None and variable is None:
+            # if arguments are none, use the current selected.
+            dataset, variable = self.selected()
 
-        if not dataset or not variable or not self.isEnabled():
-            return ()
-        elif dataset == from_console_text:
-            # the only way is to actually get it
-            return np.shape(self.get_values())
+        if not dataset or not variable:
+            return OrderedDict()
+
+        if dataset == CONSOLE_TEXT:
+            shape = np.shape(self.ipython.get_var_value(variable))
         else:
-            try:
-                ncvar = QCoreApplication.instance().dict_of_datasets[dataset].variables[variable]
-                return ncvar.shape
-            except AttributeError:
-                return ()
+            shape = np.shape(self.datasets.datasets[dataset].variables[variable])
 
+        return shape
+
+    def get_dimensions(self, dataset=None, variable=None):
+        if dataset is None and variable is None:
+            # if arguments are none, use the current selected.
+            dataset, variable = self.selected()
+
+        if dataset == CONSOLE_TEXT:
+            shape = np.shape(self.ipython.get_var_value(variable))
+            names = np.arange(len(shape))
+        else:
+            shape = np.shape(self.datasets.datasets[dataset].variables[variable])
+            names = self.datasets.datasets[dataset].variables[variable].dimensions
+
+        return OrderedDict(zip(names, shape))
+
+    def get_config(self):
+        dataset, variable = self.selected()
+        ncvar = self.get_ncvar()
+        if ncvar is not None and hasattr(ncvar, "units"):
+            units = ncvar.units
+        else:
+            units = ""
+
+        return {
+            "dataset": dataset,
+            "variable": variable,
+            "data": self.get_data(),
+            "units": units
+        }
 
 
 

@@ -1,9 +1,9 @@
 from PyQt5.QtCore import pyqtSignal
 
-from pyntpg.plot_tabs.panel_configurer import YPicker
+from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker
 
 
-class SignalPicker(YPicker):
+class SignalPicker(FlatDatasetVarPicker):
     # int size of variable, dict flattening slices, str dataset of origin
     y_picked = pyqtSignal(int, dict, str)
 
@@ -12,7 +12,7 @@ class SignalPicker(YPicker):
 
     def emit_y_picked(self):
         self.y_picked.emit(
-            len(self.get_values()),
-            self.get_dim_slices(),
+            len(self.get_data()),
+            self.slices(),
             str(self.dataset_widget.currentText())
         )

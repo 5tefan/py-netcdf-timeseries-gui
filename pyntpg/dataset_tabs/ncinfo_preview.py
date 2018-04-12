@@ -1,4 +1,7 @@
+import os
+
 import netCDF4 as nc
+from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QProgressBar, QPlainTextEdit
 
 
@@ -18,7 +21,7 @@ class NcinfoPreview(QWidget):
         status_layout.setSpacing(0)
         status_layout.setContentsMargins(0, 0, 0, 0)
         status.setLayout(status_layout)
-        label = QLabel("Dataset")
+        label = QLabel("Dataset Summary:")
         label.setContentsMargins(0, 6, 10, 6)
         status_layout.addWidget(label)
         self.progress = QProgressBar()
@@ -31,21 +34,27 @@ class NcinfoPreview(QWidget):
         self.textbox.setReadOnly(True)
         self.layout.addWidget(self.textbox)
 
-    def show_progress(self):
+    def show_progress(self, max):
         """ Show the progress bar.
         :return: None
         """
         self.progress.setVisible(True)
+        self.progress.setRange(0, max)
+        self.progress.setValue(0)
 
-    def update(self, netcdf_obj):
+    @pyqtSlot(str)
+    def update(self, netcdf_filepath):
         """ Update the text displayed inside the preview widget.
-        :param netcdf_obj: A netcdf object to use to create a preview
         :return: None
         """
-        if netcdf_obj is not None:
-            self.textbox.setPlainText(self.make_nc_preview(netcdf_obj))
+        if isinstance(netcdf_filepath, basestring) and os.path.exists(netcdf_filepath):
+            try:
+                text = self.make_nc_preview(nc.Dataset(netcdf_filepath))
+            except IOError as e:
+                text = repr(e)
+            self.textbox.setPlainText(text)
         else:
-            self.textbox.setPlainText("")
+            self.textbox.setPlainText("Select file(s)! %s" % netcdf_filepath)
         self.progress.setVisible(False)
 
     @staticmethod

@@ -1,11 +1,9 @@
-from PyQt5.QtWidgets import QWizard, QWidget, QHBoxLayout, QWizardPage, QVBoxLayout
-
 import numpy as np
-from scipy.fftpack import fftfreq, fft
-
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from PyQt5.QtWidgets import QWizard, QWidget, QHBoxLayout, QWizardPage, QVBoxLayout
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from scipy.fftpack import fftfreq, fft
 
 from pyntpg.analysis.frequency_analysis_helpers.frequency_picker import FrequencyPicker
 from pyntpg.analysis.frequency_analysis_helpers.signal_picker import SignalPicker
@@ -32,7 +30,7 @@ class DiscreteFourierTransform(QWizard):
         :return: freqs, and fourier coeffs (norm)
         """
         frequency, oslice = self.choose_params_pg1.choose_frequency.get_frequency_and_slice()
-        values = self.choose_params_pg1.choose_signal.get_values(oslice)
+        values = self.choose_params_pg1.choose_signal.get_data(oslice)
         xf = fftfreq(len(values), d=frequency**-1)  # note inverse to get sample spacing
         positive_index = np.where(xf > 0)
         freqs = xf[positive_index]

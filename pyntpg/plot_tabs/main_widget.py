@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QTabWidget, QWidget, QTabBar, QLineEdit
 from PyQt5.QtCore import QMutex
+from PyQt5.QtWidgets import QTabWidget, QWidget, QTabBar, QLineEdit
 
 from pyntpg.plot_tabs.plot_tab import PlotTab
 from pyntpg.vertical_scroll_area import VerticalScrollArea

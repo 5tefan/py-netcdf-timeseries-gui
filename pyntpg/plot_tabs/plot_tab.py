@@ -1,8 +1,7 @@
-from PyQt5.QtWidgets import QWidget, QGridLayout, QSizePolicy, QVBoxLayout
-from PyQt5.Qt import QKeySequence, QShortcut
-
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+from PyQt5.Qt import QKeySequence, QShortcut
+from PyQt5.QtWidgets import QWidget, QGridLayout, QSizePolicy, QVBoxLayout
 from matplotlib.axes._axes import Axes
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -11,7 +10,6 @@ from matplotlib.figure import Figure
 from pyntpg.plot_tabs.layout_picker import LayoutPicker
 from pyntpg.plot_tabs.list_configured import ListConfigured
 from pyntpg.plot_tabs.panel_configurer import PanelConfigurer
-
 from pyntpg.plot_tabs.plot_widget import plot_lines
 
 

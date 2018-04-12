@@ -1,8 +1,8 @@
 import copy
 
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QListWidget, QAbstractItemView
-from PyQt5.QtWidgets import QAction, QListWidgetItem, QMenu, QInputDialog
 from PyQt5.Qt import QCursor
+from PyQt5.QtWidgets import QAction, QListWidgetItem, QMenu, QInputDialog
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QListWidget, QAbstractItemView
 
 """ Change to now store the data to be plotting inside
 each ConfiguredListWidget instead of just metaish data
@@ -154,6 +154,7 @@ class ConfiguredListWidget(QLabel):
         self.item = item
 
         # Populate the text
+        self.config = None
         self.apply_data(config)
 
         # Create the context menu shown on right click
@@ -170,9 +171,8 @@ class ConfiguredListWidget(QLabel):
         :return: None
         """
         # Attach the config
-        if config is not None:
-            self.config = config
-        self.setText("panel %s : %s" % (self.config["panel-dest"], self.config["string"]))
+        self.config = config
+        self.setText("panel %s : %s" % (self.config["panel-dest"], self.make_id_string(self.config)))
 
     def get_config(self):
         """ Get the configuration object attached to (ie. used to create) this object.
@@ -192,6 +192,30 @@ class ConfiguredListWidget(QLabel):
         :return: None
         """
         self.menu.popup(QCursor.pos())
+
+    def make_id_string(self, config):
+        """ The config key "string" corresponds to what will be shown in the list configured. """
+        try:
+            xaxis = config["xaxis"]
+            yaxis = config["yaxis"]
+            axis_type = xaxis["type"]
+            if axis_type == "index":
+                return "%s::%s (index)" % (yaxis["dataset"], yaxis["variable"])
+            elif axis_type == "datetime":
+                return "%s::%s vs %s::%s (datetime)" % (
+                    xaxis["dataset"], xaxis["variable"],
+                    yaxis["dataset"], yaxis["variable"]
+                )
+            elif axis_type == "scatter":
+                return "%s::%s vs %s::%s (scatter)" % (
+                    xaxis["dataset"], xaxis["variable"],
+                    yaxis["dataset"], yaxis["variable"]
+                )
+        except Exception as e:
+            pass
+
+        return "ERROR, bad config"
+
 
 if __name__ == "__main__":
     import sys
