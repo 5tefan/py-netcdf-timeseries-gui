@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='pyntpg',
-    version='0.1',
+    version='0.2',
     author="Stefan Codrescu",
     author_email="stefan.codrescu@noaa.gov",
     packages=find_packages(),
@@ -17,8 +17,5 @@ setup(
     ''',
     classifiers=[
         "Development Status :: 3 - Alpha",
-    ],
-    dependency_links=[
-        'git+https://ctor.space/gitlab/work/ncagg.git/@master#egg=ncagg-0',
-    ],
+    ]
 )
