@@ -1,11 +1,9 @@
-from PyQt5.QtWidgets import QWizard, QWidget, QHBoxLayout, QWizardPage, QVBoxLayout
-
 import numpy as np
-from scipy.fftpack import fftfreq, fft
-
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from PyQt5.QtWidgets import QWizard, QWidget, QHBoxLayout, QWizardPage, QVBoxLayout
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from scipy.fftpack import fftfreq, fft
 
 from pyntpg.analysis.frequency_analysis_helpers.frequency_picker import FrequencyPicker
 from pyntpg.analysis.frequency_analysis_helpers.signal_picker import SignalPicker

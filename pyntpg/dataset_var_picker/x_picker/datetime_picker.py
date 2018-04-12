@@ -1,13 +1,13 @@
-from PyQt5.QtWidgets import QWidget, QDateTimeEdit, QFormLayout
-from PyQt5.QtCore import pyqtSlot
-from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
-import numpy as np
-from netCDF4._netCDF4 import _dateparse
-from datetime import datetime
 from collections import OrderedDict
-import netCDF4 as nc
+from datetime import datetime
 
-from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker
+import netCDF4 as nc
+import numpy as np
+from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtWidgets import QWidget, QDateTimeEdit, QFormLayout
+from netCDF4._netCDF4 import _dateparse
+
+from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
 from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker
 
 
@@ -96,6 +96,26 @@ class DatetimePicker(DatasetVarPicker):
 
     def get_data(self, _=None):
         num_dims = len(self.get_original_shape())
-        super(DatetimePicker, self).get_data(oslice=self.slices[:num_dims])
+        data = super(DatetimePicker, self).get_data(oslice=self.slices.values()[:num_dims])
+
+        if not isinstance(data.item(0), datetime):
+            # not datetime already, convert through num2date
+            # by assumption value has a units attribute since
+            # show_var_condition, would not allow the variable to be displayed
+            # unless it was already a datetime or had num2date parseable units field
+            value = self.get_value()
+            data = nc.num2date(data, value.units)
+
+        if len(self.slices) > 1:
+            return data.flatten()
+        else:
+            return data
+
+
+    def get_config(self):
+        default = super(DatetimePicker, self).get_config()
+        default.update({"type": "datetime"})
+        print default
+        return default
 
 

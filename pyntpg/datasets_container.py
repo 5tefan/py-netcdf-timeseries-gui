@@ -1,5 +1,5 @@
-from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 import netCDF4 as nc
+from PyQt5.QtCore import QObject, pyqtSignal, pyqtSlot
 
 
 class DatasetsContainer(QObject):

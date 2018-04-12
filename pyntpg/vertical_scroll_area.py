@@ -1,5 +1,5 @@
-from PyQt5.QtWidgets import QScrollArea, QFrame
 from PyQt5.QtCore import Qt, QEvent
+from PyQt5.QtWidgets import QScrollArea, QFrame
 
 
 class VerticalScrollArea(QScrollArea):

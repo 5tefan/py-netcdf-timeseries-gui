@@ -1,8 +1,8 @@
 import copy
 
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QListWidget, QAbstractItemView
-from PyQt5.QtWidgets import QAction, QListWidgetItem, QMenu, QInputDialog
 from PyQt5.Qt import QCursor
+from PyQt5.QtWidgets import QAction, QListWidgetItem, QMenu, QInputDialog
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton, QListWidget, QAbstractItemView
 
 """ Change to now store the data to be plotting inside
 each ConfiguredListWidget instead of just metaish data

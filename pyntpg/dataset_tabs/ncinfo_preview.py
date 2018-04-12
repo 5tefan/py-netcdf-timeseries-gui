@@ -1,7 +1,8 @@
-import netCDF4 as nc
 import os
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QProgressBar, QPlainTextEdit
+
+import netCDF4 as nc
 from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QProgressBar, QPlainTextEdit
 
 
 class NcinfoPreview(QWidget):

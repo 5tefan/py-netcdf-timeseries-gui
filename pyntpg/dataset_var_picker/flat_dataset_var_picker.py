@@ -1,13 +1,13 @@
-import numpy as np
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSpinBox, QLabel, QCheckBox
-from PyQt5.QtCore import QCoreApplication, pyqtSlot, pyqtSignal, QMutex
-
-from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, CONSOLE_TEXT
-from pyntpg.vertical_scroll_area import VerticalScrollArea
-from pyntpg.horizontal_pair import HorizontalPair
-from pyntpg.clear_layout import clear_layout
-
 from collections import OrderedDict
+
+import numpy as np
+from PyQt5.QtCore import QCoreApplication, pyqtSlot, pyqtSignal, QMutex
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSpinBox, QLabel, QCheckBox
+
+from pyntpg.clear_layout import clear_layout
+from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, CONSOLE_TEXT
+from pyntpg.horizontal_pair import HorizontalPair
+from pyntpg.vertical_scroll_area import VerticalScrollArea
 
 
 class SliceContainer(QWidget):
@@ -105,6 +105,7 @@ class SliceContainer(QWidget):
     def emit_slices(self):
         self.sig_slices.emit(OrderedDict([(k, slice(a.value(), b.value())) for k, (a, b) in self.spinboxes.items()]))
 
+
 # TODO: combine these two classes
 class DimensionFlattenPicker(QWidget):
 
@@ -119,6 +120,7 @@ class DimensionFlattenPicker(QWidget):
 
         self.checkbox_flatten = QCheckBox("Flatten?", self)
         self.checkbox_flatten.setChecked(True)  # start checked, back compatible behavior
+        self.checkbox_flatten.setEnabled(False)
         self.layout.addWidget(self.checkbox_flatten)
 
         self.datasets = QCoreApplication.instance().datasets

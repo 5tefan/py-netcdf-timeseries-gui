@@ -1,7 +1,7 @@
-from PyQt5.QtWidgets import QWidget, QFormLayout, QSpinBox
-from PyQt5.QtCore import pyqtSlot, QMutex
-from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
 import numpy as np
+from PyQt5.QtCore import pyqtSlot, QMutex
+from PyQt5.QtWidgets import QWidget, QFormLayout, QSpinBox
+
 
 class IndexPicker(QWidget):
 

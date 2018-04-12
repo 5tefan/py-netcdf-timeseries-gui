@@ -1,7 +1,6 @@
 from PyQt5.QtWidgets import QWizard, QWidget, QHBoxLayout, QFormLayout, QSpinBox, QComboBox
-
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from pyntpg.analysis.discrete_fourier_transform.discrete_fourier_transform import ChooseParameters

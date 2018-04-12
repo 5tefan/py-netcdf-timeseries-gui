@@ -1,14 +1,13 @@
-import numpy as np
+import traceback
+
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, QObject
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QSizePolicy
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, QThread, QObject, QMetaObject, QMutex
 
 from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker
 # X picker new for testing
 from pyntpg.dataset_var_picker.x_picker.x_picker import XPicker
 from pyntpg.plot_tabs.misc_controls import MiscControls
 from pyntpg.plot_tabs.plot_widget import PlotWidget, plot_lines
-
-import traceback
 
 
 class PanelConfigurer(QWidget):
@@ -53,7 +52,7 @@ class PanelConfigurer(QWidget):
         try:
             config_dict = self.make_config_dict()
             self.signal_new_config.emit(config_dict)
-        except KeyError as e:
+        except (KeyError, TypeError) as e:
             # TODO: Status alert, no configured
             print traceback.format_exc()
             print "ERRROR %s" % e
@@ -74,16 +73,9 @@ class PanelConfigurer(QWidget):
         """
         base = self.misc_controls.get_config()
 
-        try:
-            base["xaxis"] = xaxis = self.x_picker.get_config()
-        except TypeError:
-            return
+        base["xaxis"] = xaxis = self.x_picker.get_config()
 
-        try:
-            base["yaxis"] = yaxis = self.y_picker.get_config()
-        except TypeError:
-            # None type not iterable, ie nothing selected in one of the pickers
-            return
+        base["yaxis"] = yaxis = self.y_picker.get_config()
 
         # enable the grid
         base["grid"] = (True,)  # translates to a call ax.grid(True)

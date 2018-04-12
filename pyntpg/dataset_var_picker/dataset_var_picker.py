@@ -1,7 +1,8 @@
-from PyQt5.QtWidgets import QWidget, QComboBox, QVBoxLayout, QLabel, QFormLayout, QSizePolicy
-from PyQt5.QtCore import QCoreApplication, pyqtSlot
-import numpy as np
 from collections import OrderedDict
+
+import numpy as np
+from PyQt5.QtCore import QCoreApplication, pyqtSlot
+from PyQt5.QtWidgets import QWidget, QComboBox, QVBoxLayout, QLabel, QFormLayout, QSizePolicy
 
 # from pyntpg.datasets_container import DatasetsContainer
 # from pyntpg.analysis.ipython_console import IPythonConsole

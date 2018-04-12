@@ -1,8 +1,8 @@
 import re
 from string import ascii_lowercase
 
-from PyQt5.QtWidgets import QWidget, QTabWidget, QTabBar, QLineEdit
 from PyQt5.QtCore import QMutex, QCoreApplication
+from PyQt5.QtWidgets import QWidget, QTabWidget, QTabBar, QLineEdit
 
 from pyntpg.dataset_tabs.dataset_tab import DatasetTab
 from pyntpg.datasets_container import DatasetsContainer
@@ -44,7 +44,7 @@ class DatasetTabs(QTabWidget):
         maxindex = self.count() - 1
         if (index == maxindex or index == -1) and self.mutex.tryLock():
             dataset_tab = DatasetTab(self)
-            dataset_tab.dataset_ready.connect(lambda path: self.upd(path, dataset_tab))
+            dataset_tab.dataset_ready.connect(lambda path: self.publish_dataset(path, dataset_tab))
             self.insertTab(maxindex, dataset_tab, "dataset_"
                            + ascii_lowercase[self.number_tabs_added % len(ascii_lowercase)])
             self.number_tabs_added += 1

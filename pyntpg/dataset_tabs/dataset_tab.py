@@ -1,15 +1,14 @@
+import logging
 import os
-from PyQt5.QtWidgets import QWidget, QGridLayout
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, QThread, QObject, QMetaObject, QMutex
-from PyQt5.Qt import Qt
-
 from tempfile import mkstemp
+
+from PyQt5.Qt import Qt
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, QThread, QObject, QMetaObject, QMutex
+from PyQt5.QtWidgets import QWidget, QGridLayout
+from ncagg.aggregator import Config, generate_aggregation_list, evaluate_aggregation_list
 
 from pyntpg.dataset_tabs.file_picker import FilePicker
 from pyntpg.dataset_tabs.ncinfo_preview import NcinfoPreview
-from ncagg.aggregator import Config, generate_aggregation_list, evaluate_aggregation_list
-
-import logging
 
 logger = logging.getLogger(__name__)
 

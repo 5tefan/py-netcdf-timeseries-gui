@@ -1,5 +1,6 @@
-from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker
 from PyQt5.QtCore import pyqtSlot
+
+from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker
 
 
 class ScatterPicker(FlatDatasetVarPicker):

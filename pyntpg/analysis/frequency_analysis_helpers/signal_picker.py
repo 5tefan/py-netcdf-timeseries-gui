@@ -1,4 +1,5 @@
 from PyQt5.QtCore import pyqtSignal
+
 from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker
 
 

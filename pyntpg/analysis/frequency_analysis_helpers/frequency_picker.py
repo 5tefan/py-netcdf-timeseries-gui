@@ -1,8 +1,8 @@
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QRadioButton, QFormLayout, QDateTimeEdit, QSpinBox, QDoubleSpinBox
-
 from datetime import datetime, time
-import numpy as np
+
 import netCDF4 as nc
+import numpy as np
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QRadioButton, QFormLayout, QDateTimeEdit, QSpinBox, QDoubleSpinBox
 from netCDF4._netCDF4 import _dateparse
 
 from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker

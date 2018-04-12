@@ -1,10 +1,8 @@
-import datetime
-
+import IPython
 import numpy as np
-from PyQt5.QtWidgets import QWidget, QShortcut
 from PyQt5.QtCore import QCoreApplication, pyqtSlot, pyqtSignal
 from PyQt5.QtGui import QKeySequence
-import IPython
+from PyQt5.QtWidgets import QShortcut
 from qtconsole.inprocess import QtInProcessKernelManager
 from qtconsole.rich_jupyter_widget import RichJupyterWidget
 from traitlets.config.configurable import MultipleInstanceError

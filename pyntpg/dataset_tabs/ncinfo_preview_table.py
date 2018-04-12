@@ -1,6 +1,5 @@
 import netCDF4 as nc
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem
-from PyQt5 import Qt
 
 """ NOT USING THIS. I wrote this but didn't like it.
 Some more effort could make it better. Mainly needs some

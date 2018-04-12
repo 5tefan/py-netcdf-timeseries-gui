@@ -1,6 +1,6 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QStyle, QSizePolicy, QPushButton, QAbstractItemView
-from PyQt5.QtWidgets import QLabel, QListWidget, QListWidgetItem, QFileDialog
 from PyQt5.QtCore import pyqtSignal, Qt, QSize
+from PyQt5.QtWidgets import QLabel, QListWidget, QListWidgetItem, QFileDialog
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QStyle, QSizePolicy, QPushButton, QAbstractItemView
 
 
 class FilePicker(QWidget):

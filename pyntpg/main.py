@@ -1,26 +1,24 @@
 import inspect
+import logging
 import sys
+
 import numpy as np
-
-# Qt Imports
-from PyQt5.QtWidgets import QApplication, QMainWindow, QStyleFactory, QShortcut, QWidget
-from PyQt5.QtWidgets import QVBoxLayout, QMenu, QInputDialog, QSplitter
-from PyQt5.QtGui import QFont, QFontMetrics
-from PyQt5.QtCore import QObject, pyqtSignal
-from PyQt5.QtGui import QKeySequence
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QFont, QFontMetrics
+from PyQt5.QtGui import QKeySequence
+# Qt Imports
+from PyQt5.QtWidgets import QApplication, QMainWindow, QStyleFactory, QShortcut
+from PyQt5.QtWidgets import QMenu, QInputDialog, QSplitter
 
+import pyntpg.analysis as analysis
+from pyntpg.analysis.ipython_console import IPythonConsole
 # project imports
 from pyntpg.dataset_tabs.main_widget import DatasetTabs
+from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
+from pyntpg.datasets_container import DatasetsContainer
+from pyntpg.plot_tabs.layout_picker import DimesnionChangeDialog
 from pyntpg.plot_tabs.main_widget import PlotTabs
 from pyntpg.plot_tabs.panel_configurer import PanelConfigurer
-from pyntpg.analysis.ipython_console import IPythonConsole
-from pyntpg.plot_tabs.layout_picker import DimesnionChangeDialog
-from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
-import pyntpg.analysis as analysis
-
-import logging
-from pyntpg.datasets_container import DatasetsContainer
 
 logger = logging.getLogger(__name__)
 
