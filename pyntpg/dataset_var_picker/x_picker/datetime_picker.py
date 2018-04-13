@@ -107,9 +107,13 @@ class DatetimePicker(DatasetVarPicker):
             data = nc.num2date(data, value.units)
 
         if len(self.slices) > 1:
-            return data.flatten()
-        else:
-            return data
+            data = data.flatten()
+
+        return np.ma.masked_where(
+            (data < self.start_time.dateTime().toPyDateTime())
+            | (data > self.end_time.dateTime().toPyDateTime()),
+            data
+        )
 
     def get_config(self):
         default = super(DatetimePicker, self).get_config()

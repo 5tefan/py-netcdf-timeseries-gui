@@ -4,6 +4,7 @@ from matplotlib.axes._axes import Axes
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
+import numpy as np
 
 
 class PlotWidget(QWidget):
@@ -81,6 +82,9 @@ def plot_lines(ax, lines):
             # make the plot for the basic types, these all use the ax.plot method
             xdata = xaxis.pop("data", [])
             ydata = yaxis.pop("data", [])
+            if np.ma.is_masked(xdata):
+                mask = np.broadcast_to(np.ma.getmask(xdata), ydata.T.shape)
+                ydata = np.ma.masked_where(mask.T, ydata)
             ax.plot(xdata, ydata, **line_filtered)  # see http://stackoverflow.com/q/8979258
         elif line["type"] == "spectrogram":
             # specific to the spectrogram plot, we need to plot with the pcolormesh method
