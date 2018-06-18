@@ -73,7 +73,17 @@ class DatasetVarPicker(QWidget, object):
     @pyqtSlot(str)
     def add_dataset(self, name):
         """ Add a dataset to the list of options displayed. """
-        self.dataset_widget.addItem(name)
+        index = self.dataset_widget.findText(name)
+        if index < 0:
+            # only add if the dataset isn't already in the selector.
+            self.dataset_widget.addItem(name)
+        else:
+            # otherwise, if already in selector... check if selected. If so, trigger a reselect
+            # because receiving an add_dataset for an existing dataset means something changed
+            # (eg. reaggregated with different set of files), and dimensions may have changed.
+            current_dataset = self.dataset_widget.currentText()
+            if current_dataset == name:
+                self.dataset_selected(name)
 
     @pyqtSlot(str)
     def rm_dataset(self, name):
