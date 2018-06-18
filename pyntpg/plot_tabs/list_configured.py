@@ -171,7 +171,8 @@ class ConfiguredListWidget(QLabel):
         :return: None
         """
         # Attach the config
-        self.config = config
+        if config is not None:
+            self.config = config
         self.setText("panel %s : %s" % (self.config["panel-dest"], self.make_id_string(self.config)))
 
     def get_config(self):
