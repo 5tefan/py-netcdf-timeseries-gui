@@ -30,7 +30,7 @@ class XPicker(QWidget):
     """
 
     sig_target_length = pyqtSignal(int)
-    sig_slices = pyqtSignal(list)
+    sig_slices = pyqtSignal(OrderedDict)
 
     def __init__(self, *args, **kwargs):
 
