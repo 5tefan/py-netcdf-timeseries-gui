@@ -5,7 +5,13 @@ import netCDF4 as nc
 import numpy as np
 from PyQt5.QtCore import pyqtSlot
 from PyQt5.QtWidgets import QWidget, QDateTimeEdit, QFormLayout
-from netCDF4._netCDF4 import _dateparse
+
+try:
+    # for netCDF4 versions before 1.4.0
+    from netCDF4._netCDF4 import _dateparse
+except ImportError:
+    # netcdf4 version 1.4.0 removes netcdftime to a separate package "cftime"
+    from cftime._cftime import _dateparse
 
 from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
 from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker

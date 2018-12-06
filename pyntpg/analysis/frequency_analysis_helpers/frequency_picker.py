@@ -3,7 +3,12 @@ from datetime import datetime, time
 import netCDF4 as nc
 import numpy as np
 from PyQt5.QtWidgets import QWidget, QHBoxLayout, QRadioButton, QFormLayout, QDateTimeEdit, QSpinBox, QDoubleSpinBox
-from netCDF4._netCDF4 import _dateparse
+try:
+    # for netCDF4 versions before 1.4.0
+    from netCDF4._netCDF4 import _dateparse
+except ImportError:
+    # netcdf4 version 1.4.0 removes netcdftime to a separate package "cftime"
+    from cftime._cftime import _dateparse
 
 from pyntpg.dataset_var_picker.flat_dataset_var_picker import FlatDatasetVarPicker
 
