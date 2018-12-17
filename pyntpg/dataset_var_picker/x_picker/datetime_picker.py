@@ -1,9 +1,9 @@
 from collections import OrderedDict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import netCDF4 as nc
 import numpy as np
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtCore import pyqtSlot, QMutex
 from PyQt5.QtWidgets import QWidget, QDateTimeEdit, QFormLayout
 
 try:
@@ -46,9 +46,23 @@ class DatetimePicker(DatasetVarPicker):
         self.end_time.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
         self.date_range_layout.addRow("end", self.end_time)
 
+        # a mutex to prevent programatic changes from being registered as user inputs
+        self.datetime_change_mutex = QMutex()
+        self.datetime_user_modified = False
+
+        self.start_time.dateTimeChanged.connect(self.accept_datetime_change)
+        self.end_time.dateTimeChanged.connect(self.accept_datetime_change)
+
         # if self.dataset_widget.currentText():
 
         self.variable_widget.currentIndexChanged[str].connect(self.variable_selected)
+
+
+    @pyqtSlot()
+    def accept_datetime_change(self):
+        if self.datetime_change_mutex.tryLock():  # MAKE SURE TO UNLOCK
+            self.datetime_user_modified = True
+            self.datetime_change_mutex.unlock()   # MADE SURE TO UNLCOK
 
     @pyqtSlot(int)
     def accept_target_len(self, val):
@@ -76,10 +90,25 @@ class DatetimePicker(DatasetVarPicker):
 
         start = bounds.item(0)
         end = bounds.item(-1)
+
+        # must grab the original values before setting the range because setting the
+        # range will set the value to start or range if it's outside of range when changed.
+        original_start_dt = self.start_time.dateTime().toPyDateTime()
+        original_end_dt = self.end_time.dateTime().toPyDateTime()
+
+        self.datetime_change_mutex.lock()  # A LOCK!!!! ENSURE UNLOCK.
         self.start_time.setDateTimeRange(start, end)
-        self.start_time.setDateTime(start)
         self.end_time.setDateTimeRange(start, end)
-        self.end_time.setDateTime(end)
+
+        # smc@20181217 keep original user modified dates if they are valid.
+        # emphasis on user modified! That's why new listeners required.
+        # only set the times to the bounds if the original datetimes were not in the range.
+        if original_start_dt < start or original_end_dt > end or not self.datetime_user_modified :
+            self.start_time.setDateTime(start)
+        if original_end_dt > end or original_end_dt < start or not self.datetime_user_modified:
+            self.end_time.setDateTime(end)
+        self.datetime_change_mutex.unlock()
+
 
     def show_var_condition(self, dataset, variable):
         if not super(DatetimePicker, self).show_var_condition(dataset, variable):
