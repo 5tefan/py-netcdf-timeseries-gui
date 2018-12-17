@@ -64,8 +64,9 @@ def plot_lines(ax, lines):
             if key in line.keys():
                 once_per_axes.update({key: line.pop(key)})
 
-        # create axes labels "var [units]"
-        if "units" in yaxis.keys() and "variable" in yaxis.keys():
+        # create axes labels "var [units]", 
+        # except if it's a datetime x-axis so that we don't see [seconds since ...]
+        if "units" in yaxis.keys() and "variable" in yaxis.keys() and panel_type != "datetime":
             units = yaxis["units"]
             y_label[units] = y_label.get(units, []) + [yaxis["variable"]]
         if "units" in xaxis.keys() and "variable" in xaxis.keys():
