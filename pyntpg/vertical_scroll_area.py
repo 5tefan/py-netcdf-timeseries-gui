@@ -7,7 +7,7 @@ class VerticalScrollArea(QScrollArea):
         super(VerticalScrollArea, self).__init__()
         self.setWidgetResizable(True)
         self.setFrameStyle(QFrame.NoFrame)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
         if widget:

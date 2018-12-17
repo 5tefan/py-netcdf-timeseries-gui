@@ -3,6 +3,7 @@ from collections import OrderedDict
 import numpy as np
 from PyQt5.QtCore import QCoreApplication, pyqtSlot, pyqtSignal, QMutex
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QSpinBox, QLabel, QCheckBox
+from PyQt5.QtWidgets import QFormLayout
 
 from pyntpg.clear_layout import clear_layout
 from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker, CONSOLE_TEXT
@@ -17,7 +18,8 @@ class SliceContainer(QWidget):
     def __init__(self, *args, **kwargs):
         super(SliceContainer, self).__init__(*args, **kwargs)
 
-        self.layout = QVBoxLayout()  # TODO: this might be better as a form layout
+        self.layout = QFormLayout()
+        self.layout.setRowWrapPolicy(QFormLayout.WrapAllRows)
         self.setLayout(self.layout)
         self.layout.setContentsMargins(0, 0, 0, 0)
 
@@ -34,7 +36,10 @@ class SliceContainer(QWidget):
         self.spinboxes = OrderedDict()
 
         if len(dims) <= 1:
-            self.sig_slices.emit(OrderedDict([(k, slice(0, v)) for k, v in dims.items()]))
+            slice_specification = OrderedDict(
+                [(k, (slice(0, v), False)) for k, v in dims.items()]
+            )
+            self.sig_slices.emit(slice_specification)
             return
 
         dict_items = dims.items()
@@ -55,19 +60,23 @@ class SliceContainer(QWidget):
 
             colon = QLabel(":")
             colon.setMaximumWidth(5)
-
             dim_title = QLabel("%s: " % dim)
 
-            row = HorizontalPair(dim_title, begin_spinbox, colon, end_spinbox)
-            row.setMinimumWidth(150)
-            self.layout.addWidget(row)
+            checkbox_flatten = QCheckBox("Flatten?", self)
+            checkbox_flatten.setChecked(False)  # start checked, back compatible behavior
+            # Can't flatten the first dimension, so setting first one not enabled.
+            # keeping the box though to keep the layout consistent.
+            checkbox_flatten.setEnabled(i > 0)
+            row = HorizontalPair(begin_spinbox, colon, end_spinbox, checkbox_flatten)
+            checkbox_flatten.stateChanged.connect(self.slice_changed)
+
+            self.layout.addRow(dim_title, row)
 
             begin_spinbox.valueChanged.connect(self.slice_changed)
             end_spinbox.valueChanged.connect(self.slice_changed)
-            self.spinboxes[dim] = [begin_spinbox, end_spinbox]
+            self.spinboxes[dim] = [begin_spinbox, end_spinbox, checkbox_flatten]
 
         self.emit_slices()
-        self.layout.addStretch(1)  # keeps the dim slices from spreading vertically with more room
 
     @pyqtSlot(int)
     def slice_changed(self, x):
@@ -87,8 +96,7 @@ class SliceContainer(QWidget):
                         end_spinbox.setValue(x+1)
                 except KeyError:
                     pass
-
-            if "end" in name:
+            elif "end" in name:
                 # end must be at least start + 1
                 # if end changed, make sure begin is less than end
                 try:
@@ -103,7 +111,11 @@ class SliceContainer(QWidget):
             self.slice_change_mutex.unlock()
 
     def emit_slices(self):
-        self.sig_slices.emit(OrderedDict([(k, slice(a.value(), b.value())) for k, (a, b) in self.spinboxes.items()]))
+        slice_specification = OrderedDict()
+        for dim, (begin, end, flatten) in self.spinboxes.items():
+            flatten_condition = flatten is not None and flatten.isChecked()
+            slice_specification[dim] = (slice(begin.value(), end.value()), flatten_condition)
+        self.sig_slices.emit(slice_specification)
 
 
 # TODO: combine these two classes
@@ -118,11 +130,6 @@ class DimensionFlattenPicker(QWidget):
         self.setLayout(self.layout)
         self.layout.setContentsMargins(0, 0, 0, 0)
 
-        self.checkbox_flatten = QCheckBox("Flatten?", self)
-        self.checkbox_flatten.setChecked(True)  # start checked, back compatible behavior
-        self.checkbox_flatten.setEnabled(False)
-        self.layout.addWidget(self.checkbox_flatten)
-
         self.datasets = QCoreApplication.instance().datasets
         self.ipython = QCoreApplication.instance().ipython
 
@@ -130,8 +137,6 @@ class DimensionFlattenPicker(QWidget):
         self.slice_container.setMinimumHeight(self.slice_container.minimumSizeHint().height())
         self.layout.addWidget(VerticalScrollArea(self.slice_container))
 
-        self.checkbox_flatten.clicked.connect(self.set_flatten_enabled)  # only fire for user clicks
-        # self.sig_slices.connect(self.slice_container.sig_slices)
         self.slice_container.sig_slices.connect(self.accept_slice_selection)
 
         self.slices = OrderedDict()
@@ -147,23 +152,10 @@ class DimensionFlattenPicker(QWidget):
             names = self.datasets.datasets[dataset].variables[variable].dimensions
 
         self.shape = shape
-        enable_flattening = len(shape) > 1
-        allow_unflattened = len(shape) < 3  # from matplotlib: x and y can be no greater than 2-D
+        enable_slicing = len(shape) > 1
 
-        self.slice_container.setEnabled(enable_flattening)
-        self.checkbox_flatten.setEnabled(enable_flattening and allow_unflattened)
-        self.checkbox_flatten.setChecked(enable_flattening)
+        self.slice_container.setEnabled(enable_slicing)
         self.slice_container.configure_dimensions(OrderedDict(zip(names, shape)))
-
-    @pyqtSlot(bool)
-    def set_flatten_enabled(self, t_or_f):
-        self.slice_container.setEnabled(t_or_f)
-        if t_or_f:
-            self.sig_slices.emit(self.slices)
-        else:
-            end_index = self.shape[0] if len(self.shape) > 0 else 0
-            dimension = list(self.slices.keys())[0]
-            self.sig_slices.emit(OrderedDict([(dimension, slice(0, end_index))]))
 
     @pyqtSlot(OrderedDict)
     def accept_slice_selection(self, slices=OrderedDict()):
@@ -184,7 +176,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
         self.flattener = DimensionFlattenPicker()
         self.layout.addWidget(self.flattener)
 
-        self.slices = []  # hold the slices user selects, use in get_data.
+        self.slices = OrderedDict()  # hold the slices user selects, use in get_data.
         self.anticipated_length = None
 
         self.flattener.sig_slices.connect(self.accept_slice_selection)
@@ -200,19 +192,54 @@ class FlatDatasetVarPicker(DatasetVarPicker):
     @pyqtSlot(OrderedDict)
     def accept_slice_selection(self, slices=OrderedDict()):
         self.slices = slices
+        reshaping = self.get_reshape(self.slices)
 
-        length = np.prod([s.stop - s.start for s in self.slices.values()])
-        self.anticipated_length = length
-        self.sig_anticipated_length.emit(length)
+        # reshaping should be either length 1 or 2 because the output needs to be 1D or 2D for matplotlib.
+        # If 1D, the length is obviously just the length. If 2D however, assume that the first dimension is
+        # the length (x-axis) and the second dimension will be multiple sets of y values along that axis.
+        # So, in order to facilitate the user matching the x axis up with the times on the x-axis selector,
+        # use the first dimension as anticipated length.
+        self.anticipated_length = reshaping[0]
 
+        self.sig_anticipated_length.emit(self.anticipated_length)
+
+    @staticmethod
+    def get_reshape(slice_specification):
+        """
+        A slice_specification is an OrderedDict that the user fills out by specifying slice and flattening selections
+        for each dimension of the the data selected.
+
+        In order to actually convert the data from original multidim format into the flattened selection,
+        we will need to call numpy reshape with arguments.... this function determines those arguments.
+
+        :param slice_specification: OrderedDict[slice, bool]
+        :return: list[int]
+        """
+        reshaping = []
+        for i, (the_slice, flatten_condition) in enumerate(slice_specification.values()):
+            dim_len = the_slice.stop - the_slice.start
+            if i == 0:
+                # the first dimension has to just be taken, since there's nothing behind to flatten against.
+                reshaping.append(dim_len)
+            elif flatten_condition or dim_len == 1:
+                # otherwise flatten.
+                # things are either explicitly marked to flatten, or if only size 1
+                # are flattened.
+                reshaping[-1] = reshaping[-1] * dim_len
+            else:
+                reshaping.append(dim_len)
+        return reshaping
 
     def get_data(self, _=None):
         dataset, variable = self.selected()
-        data = QCoreApplication.instance().get_data(dataset, variable, oslice=list(self.slices.values()))
-        if len(self.slices) > 1:
-            return data.flatten()
-        else:
-            return data
+        oslices = [v[0] for v in self.slices.values()]
+        data = QCoreApplication.instance().get_data(dataset, variable, oslice=oslices)
+
+        reshaping = self.get_reshape(self.slices)
+        assert len(reshaping) <= len(data.shape), "Reshaping must have fewer dims than data, " \
+                                                  "but found rehape {} vs {}".format(reshaping, data.shape)
+
+        return data.reshape(tuple(reshaping))
 
 
 

@@ -102,7 +102,9 @@ class DatetimePicker(DatasetVarPicker):
 
     def get_data(self, _=None):
         num_dims = len(self.get_original_shape())
-        data = super(DatetimePicker, self).get_data(oslice=list(self.slices.values())[:num_dims])
+        oslices = [v[0] for v in self.slices.values()]
+
+        data = super(DatetimePicker, self).get_data(oslice=oslices[:num_dims])
 
         if not isinstance(data.item(0), datetime):
             # not datetime already, convert through num2date
