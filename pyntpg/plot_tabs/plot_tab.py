@@ -1,7 +1,7 @@
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from PyQt5.Qt import QKeySequence, QShortcut
-from PyQt5.QtWidgets import QWidget, QGridLayout, QSizePolicy, QVBoxLayout
+from PyQt5.QtWidgets import QWidget, QGridLayout, QSizePolicy, QVBoxLayout, QStatusBar
 from matplotlib.axes._axes import Axes
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -23,6 +23,7 @@ class PlotTab(QWidget):
         """
         QWidget.__init__(self)
         self.layout = QGridLayout()
+        self.layout.setVerticalSpacing(0)
         self.setLayout(self.layout)
         # Odd, min height must be set for the vertical only scroll area to work
         self.setMinimumWidth(1)
@@ -36,13 +37,20 @@ class PlotTab(QWidget):
         self.layout.addWidget(self.list_configured, 0, 1)
 
         self.panel_config = PanelConfigurer()
+        # self.panel_config.setContentsMargins(0, 0, 0, 0)
         self.layout.addWidget(self.panel_config, 1, 0, 1, 2)
+
+        self.status_bar = QStatusBar()
+        # self.status_bar.setContentsMargins(0, 0, 0, 0)
+        self.layout.addWidget(self.status_bar, 2, 0, 1, 2)
 
         # Set up communication channels between ListConfigured and panelConfigurer
         self.panel_config.signal_new_config.connect(self.list_configured.add_new_config)
 
         # connect the ListConfigured plot button to self.make_plot
         self.list_configured.plot_button.clicked.connect(self.make_plot)
+
+        self.figure = None  # will be reference to widget in which plot appears when created.
 
     def make_plot(self):
         """ Connected to the plot button. On click, it:
@@ -55,11 +63,27 @@ class PlotTab(QWidget):
         # create widget where plot and toolbar will go
         self.plot_widget = QWidget()
         QShortcut(QKeySequence("Ctrl+W"), self.plot_widget, self.plot_widget.close)  # close shortcut
+        QShortcut(QKeySequence("X"), self.plot_widget, lambda: self.toggle_share_axis("x"))  # toggle share x
+        QShortcut(QKeySequence("Y"), self.plot_widget, lambda: self.toggle_share_axis("y"))  # toggle share y
+        QShortcut(QKeySequence("R"), self.plot_widget, self.redraw)  # just completely redraw plot
         layout = QVBoxLayout()
         self.plot_widget.setLayout(layout)
 
         specs = self.layout_picker.create_gridspec()
         self.figure = Figure(dpi=self.plot_widget.physicalDpiY() * (2. / 3.), tight_layout=True)
+        self.create_figure(self.figure, specs)
+
+        # Now create and add canvas and toolbar to widget
+        plot = FigureCanvas(self.figure)
+        plot.setMinimumHeight(100)
+        plot.setMinimumWidth(10)
+        # See http://matplotlib.org/users/navigation_toolbar.html for navigation tips
+        nav = NavigationToolbar(plot, self.plot_widget)
+        layout.addWidget(plot)
+        layout.addWidget(nav)
+        self.plot_widget.show()
+
+    def create_figure(self, figure, specs):
         vpanels = len(specs["height_ratios"])
         outter_grid = gridspec.GridSpec(
             vpanels, 1,
@@ -75,23 +99,51 @@ class PlotTab(QWidget):
                 width_ratios=specs["width_ratios"][i]
             )
             for j in range(hpanels):
-                ax = plt.Subplot(self.figure, inner_grid[j])
+                ax = plt.Subplot(figure, inner_grid[j])
                 assert isinstance(ax, Axes)
                 lines = self.list_configured.get_panel(npanel)
                 if lines:
                     plot_lines(ax, lines)
-                    self.figure.add_subplot(ax)
+                    figure.add_subplot(ax)
                 npanel += 1
-        self.figure.autofmt_xdate()
-        # self.figure.tight_layout()
+        figure.autofmt_xdate()
 
-        # Now create and add canvas and toolbar to widget
-        plot = FigureCanvas(self.figure)
-        plot.setMinimumHeight(100)
-        plot.setMinimumWidth(10)
-        # See http://matplotlib.org/users/navigation_toolbar.html for navigation tips
-        nav = NavigationToolbar(plot, self.plot_widget)
-        layout.addWidget(plot)
-        layout.addWidget(nav)
-        self.plot_widget.show()
+    def toggle_share_axis(self, which_axis):
+        """
+        Toggle on/off sharing x or y axis. When an axis is shared, zoom on one plot will zoom the same on all.
 
+        Resources:
+         - https://stackoverflow.com/a/42974975
+
+        :param which_axis: string "x" or "y" to specify which axis to share.
+        :return: None
+        """
+        axes = self.figure.get_axes()
+        if len(axes) <= 1:
+            return  # case: nothing to do.
+
+        if which_axis.lower() == "x":
+            grouper = axes[0].get_shared_x_axes()
+        elif which_axis.lower() == "y":
+            grouper = axes[0].get_shared_y_axes()
+        else:
+            return  # case: unrecognized axis
+
+        if len(grouper.get_siblings(axes[0])) > 1:
+            # case already joined: need to unjoin.
+            for ax in axes[1:]:
+                grouper.remove(ax)
+        else:
+            # case not joined: join
+            grouper.join(*axes)
+
+    def redraw(self):
+        """
+        Sometimes things just get messed up... start fresh.
+
+        :return: None
+        """
+        self.figure.clear()
+        self.create_figure(self.figure, self.layout_picker.create_gridspec())
+        self.figure.canvas.draw()
+        self.figure.canvas.flush_events()

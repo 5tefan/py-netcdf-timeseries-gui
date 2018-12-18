@@ -21,7 +21,7 @@ class PanelConfigurer(QWidget):
         super(PanelConfigurer, self).__init__(*args, **kwargs)
         self.layout = QHBoxLayout()
         self.setLayout(self.layout)
-        self.setMinimumHeight(200)
+        self.setMinimumHeight(190)
         self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
 
         # widget in charge of picking variable to plot as time series

@@ -11,7 +11,7 @@ class MiscControls(QWidget):
     def __init__(self):
         QWidget.__init__(self)
         self.layout = QVBoxLayout()
-        self.layout.setContentsMargins(5, 0, 5, 0)
+        self.layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout)
 
         # create form for picking visual styles

@@ -144,6 +144,7 @@ class Application(QApplication):
         min_height = fm.height()
         max_height = int(float(fm.height()) * 1.2)
         self.setStyleSheet("QPushButton { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
+        #                   "* { border: 1px solid blue } "  # DEBUG!
                            "QComboBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
                            "QSpinBox { max-height: %(max_height)spx; min-height: %(min_height)spx; } "
                            "QDateTimeEdit { max-height: %(max_height)spx; min-height: %(min_height)spx; } "

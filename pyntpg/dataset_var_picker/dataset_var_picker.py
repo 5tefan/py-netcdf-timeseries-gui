@@ -25,7 +25,7 @@ class DatasetVarPicker(QWidget, object):
         """
         super(DatasetVarPicker, self).__init__()
         self.layout = QVBoxLayout()
-        self.layout.setContentsMargins(0, 0, 5, 0)
+        self.layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.layout)
 
         if title is not None:
