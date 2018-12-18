@@ -65,11 +65,12 @@ def plot_lines(ax, lines):
                 once_per_axes.update({key: line.pop(key)})
 
         # create axes labels "var [units]", 
-        # except if it's a datetime x-axis so that we don't see [seconds since ...]
-        if "units" in yaxis.keys() and "variable" in yaxis.keys() and panel_type != "datetime":
+        if "units" in yaxis.keys() and "variable" in yaxis.keys():
             units = yaxis["units"]
             y_label[units] = y_label.get(units, []) + [yaxis["variable"]]
-        if "units" in xaxis.keys() and "variable" in xaxis.keys():
+        # smc@20181218: fix unnecessary label and units on datetime axis.
+        # if it's a datetime x-axis, don't display time [seconds since ...]
+        if "units" in xaxis.keys() and "variable" in xaxis.keys() and panel_type != "datetime":
             units = xaxis["units"]
             x_label[units] = x_label.get(units, []) + [xaxis["variable"]]
 
