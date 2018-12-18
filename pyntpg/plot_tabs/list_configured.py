@@ -160,7 +160,7 @@ class ConfiguredListWidget(QLabel):
         # Create the context menu shown on right click
         self.menu = QMenu()
         self.menu.addAction("Change panel", self.edit_action)
-        self.menu.addAction("Duplicate", lambda _: self.list.add_new_config(self.get_config()))
+        self.menu.addAction("Duplicate", lambda: self.list.add_new_config(self.get_config()))
         self.remove_action = QAction("Remove", self)
         self.menu.addAction(self.remove_action)
 
