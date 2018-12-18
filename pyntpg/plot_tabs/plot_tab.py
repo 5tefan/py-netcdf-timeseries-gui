@@ -1,6 +1,7 @@
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
 from PyQt5.Qt import QKeySequence, QShortcut
+from PyQt5.QtCore import pyqtSignal, pyqtSlot
 from PyQt5.QtWidgets import QWidget, QGridLayout, QSizePolicy, QVBoxLayout, QStatusBar
 from matplotlib.axes._axes import Axes
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -12,11 +13,12 @@ from pyntpg.plot_tabs.list_configured import ListConfigured
 from pyntpg.plot_tabs.panel_configurer import PanelConfigurer
 from pyntpg.plot_tabs.plot_widget import plot_lines
 
+# messages sent to the plot status bar will be displayed for the following number of milliseconds.
+STATUS_BAR_TIMEOUT = 10000  # milliseconds
 
 class PlotTab(QWidget):
     """ Class PlotTab is a container for the contents of each plot tab.
     """
-
     def __init__(self):
         """ Initialize layout, add main component widgets, and wire+connect the plot button.
         :return: None
@@ -37,7 +39,7 @@ class PlotTab(QWidget):
         self.layout.addWidget(self.list_configured, 0, 1)
 
         self.panel_config = PanelConfigurer()
-        # self.panel_config.setContentsMargins(0, 0, 0, 0)
+        self.panel_config.signal_status.connect(self.show_status_bar_message)
         self.layout.addWidget(self.panel_config, 1, 0, 1, 2)
 
         self.status_bar = QStatusBar()
@@ -51,6 +53,10 @@ class PlotTab(QWidget):
         self.list_configured.plot_button.clicked.connect(self.make_plot)
 
         self.figure = None  # will be reference to widget in which plot appears when created.
+
+    @pyqtSlot(str)
+    def show_status_bar_message(self, message):
+        self.status_bar.showMessage(message, STATUS_BAR_TIMEOUT)
 
     def make_plot(self):
         """ Connected to the plot button. On click, it:
@@ -103,8 +109,11 @@ class PlotTab(QWidget):
                 assert isinstance(ax, Axes)
                 lines = self.list_configured.get_panel(npanel)
                 if lines:
-                    plot_lines(ax, lines)
-                    figure.add_subplot(ax)
+                    try:
+                        plot_lines(ax, lines)
+                        figure.add_subplot(ax)
+                    except Exception as e:
+                        self.status_bar.showMessage("Problem with panel {}: {}".format(j, repr(e)), STATUS_BAR_TIMEOUT)
                 npanel += 1
         figure.autofmt_xdate()
 

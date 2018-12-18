@@ -15,6 +15,7 @@ class PanelConfigurer(QWidget):
     picking something to plot.
     """
     signal_new_config = pyqtSignal(dict)  # Signal to the ListConfigured
+    signal_status = pyqtSignal(str)  # signal for messages to plot status, eg errors, etc.
     preview_decimation = 3  # factor for decimation on the preview
 
     def __init__(self, *args, **kwargs):
@@ -26,10 +27,12 @@ class PanelConfigurer(QWidget):
 
         # widget in charge of picking variable to plot as time series
         self.y_picker = FlatDatasetVarPicker(title="y-axis")
+        self.signal_status.connect(self.y_picker.signal_status_message)
         self.layout.addWidget(self.y_picker)
 
         # widget in charge of picking the date and range
         self.x_picker = XPicker()
+        self.signal_status.connect(self.x_picker.signal_status_message)
         self.y_picker.sig_anticipated_length.connect(self.x_picker.sig_target_length)
         self.y_picker.sig_slices.connect(self.x_picker.sig_slices)
 
@@ -53,10 +56,8 @@ class PanelConfigurer(QWidget):
             config_dict = self.make_config_dict()
             self.signal_new_config.emit(config_dict)
         except (KeyError, TypeError, AssertionError) as e:
-            # TODO: Status alert, no configured
+            self.signal_status.emit("Config error: {}".format(repr(e)))
             print(traceback.format_exc())
-            print("ERRROR %s" % e)
-            pass
 
     def show_preview(self):
         self.preview = PlotWidget()

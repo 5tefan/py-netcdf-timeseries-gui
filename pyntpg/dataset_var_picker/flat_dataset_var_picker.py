@@ -167,6 +167,7 @@ class FlatDatasetVarPicker(DatasetVarPicker):
 
     sig_anticipated_length = pyqtSignal(int)  # anticipated size along x dimension
     sig_slices = pyqtSignal(OrderedDict)  # list of the dimension slices, pass through from SliceContainer
+    signal_status_message = pyqtSignal(str)
 
     def __init__(self, *args, **kwargs):
         super(FlatDatasetVarPicker, self).__init__(*args, **kwargs)

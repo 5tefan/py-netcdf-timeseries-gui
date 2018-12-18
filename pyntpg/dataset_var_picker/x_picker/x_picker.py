@@ -31,6 +31,7 @@ class XPicker(QWidget):
 
     sig_target_length = pyqtSignal(int)
     sig_slices = pyqtSignal(OrderedDict)
+    signal_status_message = pyqtSignal(str)
 
     def __init__(self, *args, **kwargs):
 
@@ -65,6 +66,11 @@ class XPicker(QWidget):
 
             if hasattr(instance, "accept_slices"):
                 self.sig_slices.connect(instance.accept_slices)
+
+            if hasattr(instance, "signal_status_message"):
+                # if the component has a signal_status_message attribute, hook it to
+                # self so that it can be propagated up to the plot tab and displayed.
+                self.signal_status_message.connect(instance.signal_status_message)
 
             self.widget_stack.addWidget(instance)
         self.layout.addWidget(self.widget_stack)

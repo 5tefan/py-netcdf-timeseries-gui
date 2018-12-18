@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 
 import netCDF4 as nc
 import numpy as np
-from PyQt5.QtCore import pyqtSlot, QMutex
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, QMutex
 from PyQt5.QtWidgets import QWidget, QDateTimeEdit, QFormLayout
 
 try:
@@ -26,6 +26,8 @@ def datetime_units(units):
         return False
 
 class DatetimePicker(DatasetVarPicker):
+
+    signal_status_message = pyqtSignal(str)
 
     def __init__(self, *args, **kwargs):
         self.slices = OrderedDict()
@@ -52,8 +54,6 @@ class DatetimePicker(DatasetVarPicker):
 
         self.start_time.dateTimeChanged.connect(self.accept_datetime_change)
         self.end_time.dateTimeChanged.connect(self.accept_datetime_change)
-
-        # if self.dataset_widget.currentText():
 
         self.variable_widget.currentIndexChanged[str].connect(self.variable_selected)
 
@@ -90,6 +90,11 @@ class DatetimePicker(DatasetVarPicker):
 
         start = bounds.item(0)
         end = bounds.item(-1)
+        if start is None or end is None:
+            self.signal_status_message.emit(
+                "Error: fill in time array bound for dataset {}, var {}. Cannot use.".format(dataset, variable)
+            )
+            return  # also abort here... don't follow through
 
         # must grab the original values before setting the range because setting the
         # range will set the value to start or range if it's outside of range when changed.
