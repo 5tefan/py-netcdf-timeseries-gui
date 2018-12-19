@@ -1,4 +1,5 @@
 from PyQt5.QtCore import pyqtSignal
+from PyQt5.QtGui import QColor
 from PyQt5.QtWidgets import QWidget, QVBoxLayout
 from matplotlib.axes._axes import Axes
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
@@ -27,6 +28,21 @@ class PlotWidget(QWidget):
 
     def closeEvent(self, _):
         self.closing.emit(self)
+
+
+def expand_colors(color_name, num_needed):
+    """
+    In the misc config panel, can only configure a single color, but can also configure multiple lines.
+    When this happens, it's nice to make it so the lines aren't all the same color. This is how it's achieved.
+
+    :param color_name: string color name in hex, eg "#01FFB0"
+    :param num_needed: Number of variations of the color needed.
+    :return: array of num_needed variations of color_name
+    """
+    original_color = QColor(color_name)
+    r, g, b, _ = original_color.getRgb()
+    dx = 40
+    return [QColor((r+x*dx) % 255, (g+x*2*dx) % 255, (b+x*3*dx) % 255).name() for x in range(num_needed)]
 
 
 def plot_lines(ax, lines):
@@ -84,10 +100,21 @@ def plot_lines(ax, lines):
             # make the plot for the basic types, these all use the ax.plot method
             xdata = xaxis.pop("data", [])
             ydata = yaxis.pop("data", [])
+
             if np.ma.is_masked(xdata):
                 mask = np.broadcast_to(np.ma.getmask(xdata), ydata.T.shape)
                 ydata = np.ma.masked_where(mask.T, ydata)
-            ax.plot(xdata, ydata, **line_filtered)  # see http://stackoverflow.com/q/8979258
+
+            nlines_per_line = np.shape(ydata)[-1]
+            if nlines_per_line > 1:
+                # for 2D data, we have one color specified, but for each line, increment the color.
+                new_colors = expand_colors(line_filtered["color"], nlines_per_line)
+                for i, c in enumerate(new_colors):
+                    line_filtered["color"] = c
+                    ax.plot(xdata, ydata[Ellipsis, i], **line_filtered)
+            else:
+                ax.plot(xdata, ydata, **line_filtered)  # see http://stackoverflow.com/q/8979258
+
         elif line["type"] == "spectrogram":
             # specific to the spectrogram plot, we need to plot with the pcolormesh method
             pass
