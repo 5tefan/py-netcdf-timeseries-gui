@@ -83,6 +83,12 @@ class ListConfigured(QWidget):
         self.list.selectionModel().selectionChanged.connect(self.line_item_selected)
         self.layout.addWidget(self.list)
 
+        # The way the scrolling works on the ListWidget is a little confusing, especially
+        # when adding new items, very hard to keep track of what is old, and where the new
+        # one went. Trying to resolve by adding a #x in the label, via unique_id, derived from
+        # just the number item added to the list.
+        self.counter = 1
+
     def add_new_config(self, data):
         """ Add a new line to a panel with config options specified in the dict data.
         :param data: dict config object for new line being added
@@ -90,7 +96,8 @@ class ListConfigured(QWidget):
         """
         # TODO: sublcass item override comparison operators so sorting works
         item = QListWidgetItem()
-        widget = ConfiguredListWidget(self, item, data)
+        widget = ConfiguredListWidget(self, item, data, self.counter)
+        self.counter += 1
         widget.remove_action.triggered.connect(lambda: self.list.takeItem(self.list.row(item)))
         item.setSizeHint(widget.sizeHint())
         self.list.addItem(item)
@@ -143,7 +150,7 @@ class ConfiguredListWidget(QLabel):
     """
 
     # TODO: connect to app inst for change dataset events so preconfigured panels still plot post dataset changes name
-    def __init__(self, listconf_wid, item, config):
+    def __init__(self, listconf_wid, item, config, unique_id):
         """ Create a basic QWidget item intended to go inside the list of configured lines
         :param config: dict of attributes specifying what/how to plot
         :return: None
@@ -155,6 +162,7 @@ class ConfiguredListWidget(QLabel):
 
         # Populate the text
         self.config = None
+        self.unique_id = unique_id
         self.apply_data(config)
 
         # Create the context menu shown on right click
@@ -173,7 +181,11 @@ class ConfiguredListWidget(QLabel):
         # Attach the config
         if config is not None:
             self.config = config
-        self.setText("panel %s : %s" % (self.config["panel-dest"], self.make_id_string(self.config)))
+        self.setText("#{} panel {} : {}".format(
+            self.unique_id,
+            self.config["panel-dest"],
+            self.make_id_string(self.config)
+        ))
 
     def get_config(self):
         """ Get the configuration object attached to (ie. used to create) this object.
