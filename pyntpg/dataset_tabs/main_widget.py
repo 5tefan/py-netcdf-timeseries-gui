@@ -108,7 +108,7 @@ class DatasetTabBar(QTabBar):
     def finish_rename(self):
         oldtext = self.tabText(self.__edited_tab)
         text = re.sub(r" ", "_", str(self.__edit.text()).rstrip())
-        text = re.sub(r"[^A-Za-z1-9_]+", "", text).rstrip("_")
+        text = re.sub(r"[^A-Za-z0-9_]+", "", text).rstrip("_")
 
         # TODO: possible to rename to same name as another dataset... prevent this.
 
