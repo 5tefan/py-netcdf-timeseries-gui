@@ -105,7 +105,7 @@ def plot_lines(ax, lines):
                 mask = np.broadcast_to(np.ma.getmask(xdata), ydata.T.shape)
                 ydata = np.ma.masked_where(mask.T, ydata)
 
-            nlines_per_line = np.shape(ydata)[-1]
+            nlines_per_line = 1 if len(np.shape(ydata)) == 1 else np.shape(ydata)[-1]
             if nlines_per_line > 1:
                 # for 2D data, we have one color specified, but for each line, increment the color.
                 new_colors = expand_colors(line_filtered["color"], nlines_per_line)
