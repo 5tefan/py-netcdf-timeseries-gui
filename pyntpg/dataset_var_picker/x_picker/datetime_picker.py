@@ -57,7 +57,6 @@ class DatetimePicker(DatasetVarPicker):
 
         self.variable_widget.currentIndexChanged[str].connect(self.variable_selected)
 
-
     @pyqtSlot()
     def accept_datetime_change(self):
         if self.datetime_change_mutex.tryLock():  # MAKE SURE TO UNLOCK
@@ -81,7 +80,15 @@ class DatetimePicker(DatasetVarPicker):
             return  # don't follow through for changed to nothing
 
         num_dims = len(self.get_original_shape(dataset, variable))
+
+        # This is going to get funky....
+        # 1. Assume that the start and end are the min and max values.... in other words, assume
+        # that the time array is in order and sorted.
         bounds = super(DatetimePicker, self).get_data(oslice=[[0, -1] for _ in range(num_dims)])
+        # 2. If either of the bound are masked, take the hit and read the whole thing and calculate min max.
+        if np.ma.count_masked(bounds) > 0:
+            full_data = super(DatetimePicker, self).get_data()
+            bounds = np.array([np.nanmin(full_data), np.nanmax(full_data)])
 
         if not isinstance(bounds.item(0), datetime):
             value = self.get_value()
@@ -114,7 +121,6 @@ class DatetimePicker(DatasetVarPicker):
             self.end_time.setDateTime(end)
         self.datetime_change_mutex.unlock()
 
-
     def show_var_condition(self, dataset, variable):
         if not super(DatetimePicker, self).show_var_condition(dataset, variable):
             return False
@@ -139,6 +145,7 @@ class DatetimePicker(DatasetVarPicker):
         oslices = [v[0] for v in self.slices.values()]
 
         data = super(DatetimePicker, self).get_data(oslice=oslices[:num_dims])
+        mask = np.ma.getmaskarray(data)  # hopefully none!
 
         if not isinstance(data.item(0), datetime):
             # not datetime already, convert through num2date
@@ -150,12 +157,19 @@ class DatetimePicker(DatasetVarPicker):
 
         if len(self.slices) > 1:
             data = data.flatten()
+            mask = mask.flatten()
 
-        return np.ma.masked_where(
-            (data < self.start_time.dateTime().toPyDateTime())
-            | (data > self.end_time.dateTime().toPyDateTime()),
-            data
-        )
+        start_bound_dt = self.start_time.dateTime().toPyDateTime()
+        end_bound_dt = self.end_time.dateTime().toPyDateTime()
+
+        if np.any(mask):
+            # if any data values are masked, must go through and remove the Nones from the data array...
+            # the None values are introduced by the nc.num2date call on masked elements
+            mask_date_detector = np.vectorize(lambda x: x is None or x < start_bound_dt or x > end_bound_dt)
+            return np.ma.masked_where(mask_date_detector(data), data)
+        else:
+            # otherwise, this approach seems to be much more efficient.
+            return np.ma.masked_where((data < start_bound_dt) | (data > end_bound_dt), data)
 
     def get_config(self):
         default = super(DatetimePicker, self).get_config()

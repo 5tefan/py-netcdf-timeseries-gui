@@ -242,7 +242,18 @@ class FlatDatasetVarPicker(DatasetVarPicker):
 
         return data.reshape(tuple(reshaping))
 
+    def get_config(self):
+        default = super(FlatDatasetVarPicker, self).get_config()
 
+        # to the defualt, add labels for each of the dimensions
+        # in the plot, we want to have labels like "var(dim1=0, dim2=1)" as an example,
+        # where, if it's a 2D plot, dim2 would range from y to z depending on what
+        # is selected here in the slice_specification (self.slices).
+
+        dim_labels = {}
+        # ... TODO
+
+        return default
 
 
 

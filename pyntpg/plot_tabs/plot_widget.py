@@ -6,6 +6,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 import numpy as np
+import matplotlib.dates as mpldates
 
 
 class PlotWidget(QWidget):
@@ -101,12 +102,21 @@ def plot_lines(ax, lines):
             xdata = xaxis.pop("data", [])
             ydata = yaxis.pop("data", [])
 
-            if np.ma.is_masked(xdata):
-                mask = np.broadcast_to(np.ma.getmask(xdata), ydata.T.shape)
-                ydata = np.ma.masked_where(mask.T, ydata)
+            if np.ma.count_masked(xdata):
+                # Motivation: Need to handle special case of masked dates on the x-axis.... masked items in
+                # a date array are either out of the range to plot, OR they are None because the underlying
+                # date from the file was a fill value.
+                # However, matplotlib cannot deal with None in the datetime array. So... we're going to need
+                # to remove the masked items from the x-axis data (xdata), however, the y-axis may have it's
+                # own independent mask, with other items masked... So remove from both x-axis and y-axis
+                # anywhere where x is masked.
+                ydata = np.compress(~np.ma.getmaskarray(xdata), ydata, axis=0)
+                xdata = np.ma.compressed(xdata)
+                assert np.shape(xdata)[0] == np.shape(ydata)[0]
 
             nlines_per_line = 1 if len(np.shape(ydata)) == 1 else np.shape(ydata)[-1]
             if nlines_per_line > 1:
+                
                 # for 2D data, we have one color specified, but for each line, increment the color.
                 new_colors = expand_colors(line_filtered["color"], nlines_per_line)
                 for i, c in enumerate(new_colors):
