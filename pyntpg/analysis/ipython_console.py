@@ -90,7 +90,7 @@ class IPythonConsole(RichJupyterWidget):
             sig_newvar=self.sig_newvar,
             sig_delvar=self.sig_delvar
         )  # overriding the user_ns dict with the shadowing dict connected to the signals.
-        self.kernel.gui = 'qt4'
+        self.kernel.gui = 'qt'
         kernel_client = kernel_manager.client()
         kernel_client.start_channels()
 
