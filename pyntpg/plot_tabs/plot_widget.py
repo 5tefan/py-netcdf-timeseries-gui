@@ -8,6 +8,9 @@ from matplotlib.figure import Figure
 import numpy as np
 import matplotlib.dates as mpldates
 
+# fix compatibility between matplotlib and cfimte > 1.2.0
+import nc_time_axis
+
 
 class PlotWidget(QWidget):
     closing = pyqtSignal(object)

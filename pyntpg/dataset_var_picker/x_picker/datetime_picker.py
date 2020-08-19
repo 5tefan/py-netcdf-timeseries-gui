@@ -16,13 +16,29 @@ except ImportError:
 from pyntpg.dataset_var_picker.dataset_var_picker import CONSOLE_TEXT
 from pyntpg.dataset_var_picker.dataset_var_picker import DatasetVarPicker
 
+try:
+    from cftime import DatetimeGregorian
+    datetime_types = (datetime, DatetimeGregorian)
+except ImportError:
+    # fallback compat if cftime < 1.2.0 installed.
+    datetime_types = (datetime,)
+
 
 def datetime_units(units):
     """ Detect if the str units is a parsable datetime units format. """
     try:
-        _dateparse(units)
-        return True
-    except Exception:
+        try:
+            _dateparse(units)
+            return True
+        except TypeError:
+            # CASE: cftime > 1.2.0, signature chagned,
+            # needs to be called with calendard "standard" arg.
+            # unfortunately inspect.getfullargspec doesn't work 
+            # on builtin functions (which _dateparse is b/c it's
+            # in C. So, can't do this more elegantly by inspection.
+            _dateparse(units, "standard")
+            return True
+    except (AttributeError, ValueError):
         return False
 
 class DatetimePicker(DatasetVarPicker):
@@ -90,13 +106,18 @@ class DatetimePicker(DatasetVarPicker):
             full_data = super(DatetimePicker, self).get_data()
             bounds = np.array([np.nanmin(full_data), np.nanmax(full_data)])
 
-        if not isinstance(bounds.item(0), datetime):
+        if not isinstance(bounds.item(0), datetime_types):
             value = self.get_value()
             # must have units if not already datetime because of show_var condition
             bounds = nc.num2date(bounds, value.units)
 
-        start = bounds.item(0)
-        end = bounds.item(-1)
+        # super annoying... cftime 1.2.0 returns a custom type that does not
+        # inherit from datetime, so it bascially can't be passed to ANYTHING
+        # that expects plain old datetimes anymore.... so, roundabout conversion
+        # to ensure we have a datetime object. This will work for pre cftime 1.2.0
+        # returning native datetime since dattetime has isoformat method as well.
+        start = datetime.fromisoformat(bounds.item(0).isoformat())
+        end = datetime.fromisoformat(bounds.item(-1).isoformat())
         if start is None or end is None:
             self.signal_status_message.emit(
                 "Error: fill in time array bound for dataset {}, var {}. Cannot use.".format(dataset, variable)
@@ -134,8 +155,8 @@ class DatetimePicker(DatasetVarPicker):
 
         value = self.get_value(dataset, variable)
         if dataset == CONSOLE_TEXT:
-            return (hasattr(value, "units")
-                    and datetime_units(value.units)) or isinstance(np.array(value).item(0), datetime)
+            return ((hasattr(value, "units") and datetime_units(value.units))
+                    or isinstance(np.array(value).item(0), datetime_types))
         else:
             # separate these out so don't try to read from the netcdf here.
             return hasattr(value, "units") and datetime_units(value.units)
@@ -147,7 +168,7 @@ class DatetimePicker(DatasetVarPicker):
         data = super(DatetimePicker, self).get_data(oslice=oslices[:num_dims])
         mask = np.ma.getmaskarray(data)  # hopefully none!
 
-        if not isinstance(data.item(0), datetime):
+        if not isinstance(data.item(0), datetime_types):
             # not datetime already, convert through num2date
             # by assumption value has a units attribute since
             # show_var_condition, would not allow the variable to be displayed

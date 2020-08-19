@@ -2,14 +2,16 @@ from setuptools import setup, find_packages
 
 setup(
     name='pyntpg',
-    version='0.2',
+    version='0.3',
     author="Stefan Codrescu",
     author_email="stefan.codrescu@noaa.gov",
     packages=find_packages(),
     install_requires=[
         'ncagg',
         'numpy',
-        'netCDF4'
+        'netCDF4',
+        'cftime',
+        'nc-time-axis'
     ],
     entry_points='''
         [console_scripts]
